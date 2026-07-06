@@ -44,6 +44,7 @@ class User extends Authenticatable
         return $this->hasMany(User::class, 'trainer_id');
     }
 
+    // Check user role
     public function isAdmin(): bool
     {
         return $this->role === 'admin';

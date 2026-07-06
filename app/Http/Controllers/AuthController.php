@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+    //Register
     public function register(RegisterRequest $request)
     {
         $data = $request->validated();
@@ -28,6 +29,7 @@ class AuthController extends Controller
         ], 201);
     }
 
+    //Login
     public function login(Request $request)
     {
         $request->validate([
@@ -49,6 +51,7 @@ class AuthController extends Controller
         ]);
     }
 
+    //Logout
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
@@ -56,19 +59,22 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out successfully.']);
     }
 
+    //Forgot Password
     public function forgotPassword(Request $request)
     {
         $request->validate(['email' => 'required|email']);
 
         $status = Password::sendResetLink($request->only('email'));
 
-        // Generic response regardless of whether the email exists,
-        // to avoid leaking which addresses are registered.
+        if ($status === Password::RESET_LINK_SENT) {
+            return response()->json(['message' => __($status)]);
+        }
         return response()->json([
             'message' => 'If an account with that email exists, a password reset link has been sent.',
         ]);
     }
 
+    //Reset Password
     public function resetPassword(Request $request)
     {
         $request->validate([
@@ -80,13 +86,8 @@ class AuthController extends Controller
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function (User $user, string $password) {
-                $user->forceFill([
-                    'password' => Hash::make($password),
-                ])->setRememberToken(Str::random(60));
-
+                $user->forceFill(['password' => Hash::make($password), 'remember_token' => null])->setRememberToken(Str::random(60));
                 $user->save();
-
-                // Invalidate existing tokens so old sessions can't keep using the old password's token
                 $user->tokens()->delete();
 
                 event(new PasswordReset($user));
@@ -96,10 +97,10 @@ class AuthController extends Controller
         if ($status !== Password::PASSWORD_RESET) {
             return response()->json(['message' => __($status)], 422);
         }
-
         return response()->json(['message' => 'Password has been reset successfully.']);
     }
 
+    //Profile
     public function profile(Request $request)
     {
         return response()->json($request->user());
