@@ -11,13 +11,6 @@ class UserSeeder extends Seeder
 {
     use WithoutModelEvents;
 
-    /**
-     * Run the database seeds.
-     *
-     * Creates one admin, a few trainers, and several students linked
-     * to those trainers via `trainer_id` — matching the users table
-     * migration (role enum + self-referencing trainer_id).
-     */
     public function run(): void
     {
         $password = Hash::make('password');
@@ -63,7 +56,6 @@ class UserSeeder extends Seeder
             );
         }
 
-        // A handful of extra random students via the factory, spread across trainers
         User::factory()
             ->count(5)
             ->sequence(fn ($sequence) => [
