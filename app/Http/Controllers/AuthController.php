@@ -28,6 +28,8 @@ class AuthController extends Controller
                 'string',
                 Rule::in(['male', 'female', 'other']),
             ],
+            'id_card' => 'nullable|integer|min:0',
+            'generation' => 'nullable|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', PasswordRule::min(8)],
             'role' => 'nullable|string|in:admin,trainer,student',
@@ -36,6 +38,8 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $request->name,
             'gender' => $request->gender,
+            'id_card' => $request->id_card,
+            'generation' => $request->generation,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role ?? 'student',
@@ -132,6 +136,8 @@ class AuthController extends Controller
         $request->validate([
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|string|email|max:255|unique:users,email,' . $user->id,
+            'id_card' => 'nullable|integer|min:0',
+            'generation' => 'nullable|string|max:255',
             'avatar' => 'nullable|image|max:2048',
             'default_avatar' => 'nullable|string|max:255',
             'avatar_id' => 'nullable|integer|exists:avatars,id',
@@ -145,6 +151,14 @@ class AuthController extends Controller
 
         if ($request->has('email')) {
             $user->email = $request->email;
+        }
+
+        if ($request->has('id_card')) {
+            $user->id_card = $request->id_card;
+        }
+
+        if ($request->has('generation')) {
+            $user->generation = $request->generation;
         }
 
         // Handle avatar_id update (direct ID)
