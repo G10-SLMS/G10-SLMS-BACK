@@ -11,12 +11,10 @@ return new class extends Migration
         Schema::create('notifications', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('user_id')                     // recipient
+            $table->foreignId('user_id')                 
                 ->constrained('users')
                 ->cascadeOnDelete();
 
-            // Nullable + nullOnDelete so a notification can survive
-            // even if the related leave request is later deleted.
             $table->foreignId('leave_request_id')
                 ->nullable()
                 ->constrained('leave_requests')
@@ -25,11 +23,11 @@ return new class extends Migration
             $table->string('type');                          // e.g. 'leave_request.approved', 'leave_request.commented'
             $table->string('title');
             $table->text('message');
-            $table->timestamp('read_at')->nullable();
+            $table->boolean('is_read')->default(false);       // 0 = unread, 1 = read
 
             $table->timestamps();
 
-            $table->index(['user_id', 'read_at']);
+            $table->index(['user_id', 'is_read']);
         });
     }
 
