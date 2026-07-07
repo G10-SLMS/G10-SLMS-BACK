@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Avatar;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -117,6 +118,7 @@ class AuthController extends Controller
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|string|email|max:255|unique:users,email,' . $user->id,
             'avatar' => 'nullable|image|max:2048',
+            'default_avatar' => 'nullable|string|max:255',
             'current_password' => 'nullable|required_with:password|current_password',
             'password' => ['nullable', 'confirmed', PasswordRule::min(8)],
         ]);
@@ -129,14 +131,42 @@ class AuthController extends Controller
             $user->email = $request->email;
         }
 
-        if ($request->hasFile('avatar')) {
-            // Delete old avatar if exists
-            if ($user->avatar && file_exists(public_path('storage/' . $user->avatar))) {
-                unlink(public_path('storage/' . $user->avatar));
+        // Handle default avatar selection
+        if ($request->has('default_avatar')) {
+            $defaultAvatarPath = 'avatars/defaults/' . $request->default_avatar;
+            
+            // Verify the default avatar exists in the database
+            $avatar = Avatar::where('path', $defaultAvatarPath)
+                           ->where('is_default', true)
+                           ->first();
+            
+            if ($avatar) {
+                $user->avatar_id = $avatar->id;
+            }
+        }
+        // Handle custom avatar upload
+        elseif ($request->hasFile('avatar')) {
+            // Delete old avatar record if exists
+            if ($user->avatar_id) {
+                $oldAvatar = Avatar::find($user->avatar_id);
+                if ($oldAvatar && !$oldAvatar->is_default) {
+                    // Delete the file
+                    if (file_exists(public_path('storage/' . $oldAvatar->path))) {
+                        unlink(public_path('storage/' . $oldAvatar->path));
+                    }
+                    $oldAvatar->delete();
+                }
             }
             
+            // Create new avatar record
             $path = $request->file('avatar')->store('avatars', 'public');
-            $user->avatar = $path;
+            $avatar = Avatar::create([
+                'filename' => basename($path),
+                'path' => $path,
+                'is_default' => false,
+            ]);
+            
+            $user->avatar_id = $avatar->id;
         }
 
         if ($request->has('password')) {
@@ -146,7 +176,7 @@ class AuthController extends Controller
         $user->save();
 
         return response()->json([
-            'user' => $user,
+            'user' => $user->load('avatar'),
             'message' => 'Profile updated successfully',
         ]);
     }
@@ -160,5 +190,82 @@ class AuthController extends Controller
         return response()->json([
             'user' => $request->user(),
         ]);
+    }
+
+    /**
+     * Get all default avatars
+     * GET /api/default-avatars
+     */
+    public function getDefaultAvatars()
+    {
+        $defaultAvatars = Avatar::where('is_default', true)
+            ->get()
+            ->map(function ($avatar) {
+                return [
+                    'id' => $avatar->id,
+                    'filename' => $avatar->filename,
+                    'url' => asset($avatar->path),
+                ];
+            });
+        
+        return response()->json([
+            'avatars' => $defaultAvatars,
+            'count' => $defaultAvatars->count(),
+        ]);
+    }
+
+    /**
+     * Upload new default avatar (Admin only)
+     * POST /api/admin/default-avatars
+     */
+    public function uploadDefaultAvatar(Request $request)
+    {
+        $request->validate([
+            'avatar' => 'required|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
+        ]);
+
+        $defaultPath = public_path('avatars/defaults');
+        
+        // Create directory if it doesn't exist
+        if (!file_exists($defaultPath)) {
+            mkdir($defaultPath, 0755, true);
+        }
+
+        // Get the next available avatar number
+        $existingFiles = glob($defaultPath . '/avatar-*.{jpg,jpeg,png,gif,webp}', GLOB_BRACE);
+        $nextNumber = 1;
+        
+        if (!empty($existingFiles)) {
+            $numbers = [];
+            foreach ($existingFiles as $file) {
+                preg_match('/avatar-(\d+)/', basename($file), $matches);
+                if (isset($matches[1])) {
+                    $numbers[] = (int) $matches[1];
+                }
+            }
+            $nextNumber = !empty($numbers) ? max($numbers) + 1 : 1;
+        }
+
+        // Save the uploaded file
+        $extension = $request->file('avatar')->getClientOriginalExtension();
+        $filename = "avatar-{$nextNumber}.{$extension}";
+        $relativePath = "avatars/defaults/{$filename}";
+        $request->file('avatar')->move($defaultPath, $filename);
+
+        // Create avatar record in database
+        $avatar = Avatar::create([
+            'filename' => $filename,
+            'path' => $relativePath,
+            'is_default' => true,
+        ]);
+
+        return response()->json([
+            'message' => 'Default avatar uploaded successfully',
+            'avatar' => [
+                'id' => $avatar->id,
+                'filename' => $filename,
+                'url' => asset($relativePath),
+            ]
+        ], 201);
     }
 }

@@ -8,6 +8,14 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+// Public routes
+Route::get('/default-avatars', [AuthController::class, 'getDefaultAvatars']);
+
+// Admin routes
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::post('/admin/default-avatars', [AuthController::class, 'uploadDefaultAvatar']);
+});
+
 // Authentication routes (Sanctum)
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
