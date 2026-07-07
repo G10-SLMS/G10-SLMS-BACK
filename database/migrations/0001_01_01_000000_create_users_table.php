@@ -17,6 +17,15 @@ return new class extends Migration
             $table->string('avatar')->nullable();
             $table->enum('role', ['admin', 'trainer', 'student'])->default('student');
             $table->foreignId('trainer_id')->nullable()->constrained('users')->nullOnDelete();
+
+            // phone: all roles
+            // class/generation/province/gender: student only
+            $table->string('phone')->nullable();
+            $table->string('class')->nullable();          // e.g. cohort name, "Web B2C1"
+            $table->string('generation')->nullable();      // e.g. intake generation, "G10"
+            $table->string('province')->nullable();
+            $table->enum('gender', ['male', 'female'])->nullable();
+
             $table->rememberToken();
             $table->timestamps();
         });

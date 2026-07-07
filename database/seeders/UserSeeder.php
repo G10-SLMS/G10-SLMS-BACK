@@ -14,6 +14,8 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         $password = Hash::make('password');
+        $provinces = ['Phnom Penh', 'Siem Reap', 'Battambang', 'Kampong Cham', 'Kandal'];
+        $genders = ['male', 'female'];
 
         // 1 admin
         User::updateOrCreate(
@@ -22,6 +24,7 @@ class UserSeeder extends Seeder
                 'name' => 'System Admin',
                 'password' => $password,
                 'role' => 'admin',
+                'phone' => '012345678',
                 'email_verified_at' => now(),
             ]
         );
@@ -35,6 +38,7 @@ class UserSeeder extends Seeder
                     'name' => $name,
                     'password' => $password,
                     'role' => 'trainer',
+                    'phone' => '01234567'.$i,
                     'email_verified_at' => now(),
                 ]
             );
@@ -51,16 +55,27 @@ class UserSeeder extends Seeder
                     'password' => $password,
                     'role' => 'student',
                     'trainer_id' => $trainer->id,
+                    'phone' => '09' . str_pad((string) $i, 7, '0', STR_PAD_LEFT),
+                    'class' => 'Web 2026B'.(($i % 3) + 1),
+                    'generation' => '2026',
+                    'province' => $provinces[$i % count($provinces)],
+                    'gender' => $genders[$i % 2],
                     'email_verified_at' => now(),
                 ]
             );
         }
 
+        // A handful of extra random students via the factory, spread across trainers
         User::factory()
             ->count(5)
             ->sequence(fn ($sequence) => [
                 'role' => 'student',
                 'trainer_id' => $trainers[$sequence->index % $trainers->count()]->id,
+                'phone' => '08' . str_pad((string) $sequence->index, 7, '0', STR_PAD_LEFT),
+                'class' => 'Web B2C'.(($sequence->index % 3) + 1),
+                'generation' => '2026',
+                'province' => $provinces[$sequence->index % count($provinces)],
+                'gender' => $genders[$sequence->index % 2],
             ])
             ->create();
     }
