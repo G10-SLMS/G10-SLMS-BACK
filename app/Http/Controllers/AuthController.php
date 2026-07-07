@@ -6,6 +6,7 @@ use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -14,7 +15,7 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    //Register
+    // Register
     public function register(RegisterRequest $request)
     {
         $data = $request->validated();
@@ -29,7 +30,7 @@ class AuthController extends Controller
         ], 201);
     }
 
-    //Login
+    // Login
     public function login(Request $request)
     {
         $request->validate([
@@ -51,7 +52,7 @@ class AuthController extends Controller
         ]);
     }
 
-    //Logout
+    // Logout
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
@@ -59,18 +60,19 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out successfully.']);
     }
 
-    //Forgot Password
+    // Forgot Password
     public function forgotPassword(Request $request)
     {
         $request->validate(['email' => 'required|email']);
 
         Password::sendResetLink($request->only('email'));
+
         return response()->json([
             'message' => 'If an account with that email exists, a password reset link has been sent.',
         ]);
     }
 
-    //Reset Password
+    // Reset Password
     public function resetPassword(Request $request)
     {
         $request->validate([
@@ -93,33 +95,44 @@ class AuthController extends Controller
         if ($status !== Password::PASSWORD_RESET) {
             return response()->json(['message' => __($status)], 422);
         }
+
         return response()->json(['message' => 'Password has been reset successfully.']);
     }
 
-    //Profile
+    // Profile
     public function profile(Request $request)
     {
         return response()->json($request->user());
     }
 
-    public function updateProfile(UpdateProfileRequest $request)
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
         $user = $request->user();
         $data = $request->validated();
 
+        // Upload new avatar
         if ($request->hasFile('avatar')) {
-            if ($user->avatar) {
+
+            // Delete old avatar if it exists
+            if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
                 Storage::disk('public')->delete($user->avatar);
             }
+
             $data['avatar'] = $request->file('avatar')->store('avatars', 'public');
         }
 
-        if (isset($data['password'])) {
+        // Hash password only if provided
+        if (! empty($data['password'])) {
             $data['password'] = Hash::make($data['password']);
+        } else {
+            unset($data['password']);
         }
 
         $user->update($data);
 
-        return response()->json($user->fresh());
+        return response()->json([
+            'message' => 'Profile updated successfully.',
+            'user' => $user->fresh(),
+        ], 200);
     }
 }
