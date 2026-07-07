@@ -2,8 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
@@ -12,6 +14,12 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        //
+        // Create default admin user
+        User::create([
+            'name' => 'Sim Hul',
+            'email' => 'sim.hul@passerellesnumeriques.org',
+            'password' => Hash::make('simhul@123'),
+            'role' => 'admin', 
+        ]);
     }
 }
