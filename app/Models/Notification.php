@@ -16,11 +16,11 @@ class Notification extends Model
         'type',
         'title',
         'message',
-        'read_at',
+        'is_read',
     ];
 
     protected $casts = [
-        'read_at' => 'datetime',
+        'is_read' => 'boolean',
     ];
 
     public function user(): BelongsTo
@@ -31,5 +31,10 @@ class Notification extends Model
     public function leaveRequest(): BelongsTo
     {
         return $this->belongsTo(LeaveRequest::class);
+    }
+
+    public function markAsRead(): void
+    {
+        $this->update(['is_read' => true]);
     }
 }
