@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
 
@@ -22,6 +23,11 @@ class AuthController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'gender' => [
+                'required',
+                'string',
+                Rule::in(['male', 'female', 'other']),
+            ],
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', PasswordRule::min(8)],
             'role' => 'nullable|string|in:admin,trainer,student',
@@ -29,10 +35,19 @@ class AuthController extends Controller
 
         $user = User::create([
             'name' => $request->name,
+            'gender' => $request->gender,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role ?? 'student',
         ]);
+
+        // Assign default avatar based on gender
+        if ($request->gender === 'female') {
+            $user->avatar_id = 87;
+        } elseif ($request->gender === 'male') {
+            $user->avatar_id = 88;
+        }
+        $user->save();
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -81,7 +96,7 @@ class AuthController extends Controller
         ]);
     }
 
-     /**
+    /**
      * Request password reset
      * POST /api/forgot-password
      */
@@ -119,6 +134,7 @@ class AuthController extends Controller
             'email' => 'sometimes|string|email|max:255|unique:users,email,' . $user->id,
             'avatar' => 'nullable|image|max:2048',
             'default_avatar' => 'nullable|string|max:255',
+            'avatar_id' => 'nullable|integer|exists:avatars,id',
             'current_password' => 'nullable|required_with:password|current_password',
             'password' => ['nullable', 'confirmed', PasswordRule::min(8)],
         ]);
@@ -131,15 +147,19 @@ class AuthController extends Controller
             $user->email = $request->email;
         }
 
+        // Handle avatar_id update (direct ID)
+        if ($request->has('avatar_id')) {
+            $user->avatar_id = $request->avatar_id;
+        }
         // Handle default avatar selection
-        if ($request->has('default_avatar')) {
+        elseif ($request->has('default_avatar')) {
             $defaultAvatarPath = 'avatars/defaults/' . $request->default_avatar;
-            
+
             // Verify the default avatar exists in the database
             $avatar = Avatar::where('path', $defaultAvatarPath)
-                           ->where('is_default', true)
-                           ->first();
-            
+                ->where('is_default', true)
+                ->first();
+
             if ($avatar) {
                 $user->avatar_id = $avatar->id;
             }
@@ -157,7 +177,7 @@ class AuthController extends Controller
                     $oldAvatar->delete();
                 }
             }
-            
+
             // Create new avatar record
             $path = $request->file('avatar')->store('avatars', 'public');
             $avatar = Avatar::create([
@@ -165,7 +185,7 @@ class AuthController extends Controller
                 'path' => $path,
                 'is_default' => false,
             ]);
-            
+
             $user->avatar_id = $avatar->id;
         }
 
@@ -207,7 +227,7 @@ class AuthController extends Controller
                     'url' => asset($avatar->path),
                 ];
             });
-        
+
         return response()->json([
             'avatars' => $defaultAvatars,
             'count' => $defaultAvatars->count(),
@@ -220,12 +240,16 @@ class AuthController extends Controller
      */
     public function uploadDefaultAvatar(Request $request)
     {
-        $request->validate([
-            'avatar' => 'required|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
-        ]);
+        // Validate that at least one avatar file is present
+        if (!$request->hasFile('avatar')) {
+            return response()->json([
+                'message' => 'No avatar files uploaded',
+                'errors' => ['avatar' => ['At least one avatar file is required']]
+            ], 422);
+        }
 
         $defaultPath = public_path('avatars/defaults');
-        
+
         // Create directory if it doesn't exist
         if (!file_exists($defaultPath)) {
             mkdir($defaultPath, 0755, true);
@@ -234,7 +258,7 @@ class AuthController extends Controller
         // Get the next available avatar number
         $existingFiles = glob($defaultPath . '/avatar-*.{jpg,jpeg,png,gif,webp}', GLOB_BRACE);
         $nextNumber = 1;
-        
+
         if (!empty($existingFiles)) {
             $numbers = [];
             foreach ($existingFiles as $file) {
@@ -246,26 +270,68 @@ class AuthController extends Controller
             $nextNumber = !empty($numbers) ? max($numbers) + 1 : 1;
         }
 
-        // Save the uploaded file
-        $extension = $request->file('avatar')->getClientOriginalExtension();
-        $filename = "avatar-{$nextNumber}.{$extension}";
-        $relativePath = "avatars/defaults/{$filename}";
-        $request->file('avatar')->move($defaultPath, $filename);
+        $uploadedAvatars = [];
 
-        // Create avatar record in database
-        $avatar = Avatar::create([
-            'filename' => $filename,
-            'path' => $relativePath,
-            'is_default' => true,
-        ]);
+        // Get files - handle both single file and multiple files
+        $files = $request->file('avatar');
+        
+        // Convert single file to array
+        if (!is_array($files)) {
+            $files = [$files];
+        }
 
-        return response()->json([
-            'message' => 'Default avatar uploaded successfully',
-            'avatar' => [
+        // Validate each file
+        foreach ($files as $file) {
+            if (!$file->isValid()) {
+                return response()->json([
+                    'message' => 'Invalid file uploaded',
+                    'errors' => ['avatar' => ['One or more files are invalid']]
+                ], 422);
+            }
+
+            $extension = strtolower($file->getClientOriginalExtension());
+            if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                return response()->json([
+                    'message' => 'Invalid file type',
+                    'errors' => ['avatar' => ['Only jpg, jpeg, png, gif, and webp files are allowed']]
+                ], 422);
+            }
+
+            if ($file->getSize() > 2048 * 1024) { // 2MB in bytes
+                return response()->json([
+                    'message' => 'File too large',
+                    'errors' => ['avatar' => ['Each file must be less than 2MB']]
+                ], 422);
+            }
+        }
+
+        // Process each uploaded file
+        foreach ($files as $file) {
+            // Save the uploaded file
+            $extension = $file->getClientOriginalExtension();
+            $filename = "avatar-{$nextNumber}.{$extension}";
+            $relativePath = "avatars/defaults/{$filename}";
+            $file->move($defaultPath, $filename);
+
+            // Create avatar record in database
+            $avatar = Avatar::create([
+                'filename' => $filename,
+                'path' => $relativePath,
+                'is_default' => true,
+            ]);
+
+            $uploadedAvatars[] = [
                 'id' => $avatar->id,
                 'filename' => $filename,
                 'url' => asset($relativePath),
-            ]
+            ];
+
+            $nextNumber++;
+        }
+
+        return response()->json([
+            'message' => count($uploadedAvatars) . ' default avatar(s) uploaded successfully',
+            'avatars' => $uploadedAvatars,
         ], 201);
     }
 }

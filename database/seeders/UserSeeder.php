@@ -17,6 +17,7 @@ class UserSeeder extends Seeder
         // Create default admin user
         User::create([
             'name' => 'Sim Hul',
+            'gender' => 'male',
             'email' => 'sim.hul@passerellesnumeriques.org',
             'password' => Hash::make('simhul@123'),
             'role' => 'admin', 
