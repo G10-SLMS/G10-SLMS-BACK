@@ -11,14 +11,17 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Seed the application's database.
+     *
+     * Order matters: LeaveRequestSeeder depends on users + leave types
+     * already existing, and CommentSeeder depends on leave requests.
      */
     public function run(): void
     {
         $this->call([
             UserSeeder::class,
-            // LeaveTypeSeeder::class,   // enable once the leave_types table has real columns
-            // LeaveRequestSeeder::class, // enable once the leave_requests table has real columns
-            // CommentSeeder::class,      // enable once the comments table has real columns
+            LeaveTypeSeeder::class,
+            LeaveRequestSeeder::class,
+            CommentSeeder::class,
         ]);
     }
 }

@@ -6,20 +6,24 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('attachments', function (Blueprint $table) {
             $table->id();
+
+            $table->foreignId('leave_request_id')
+                ->constrained('leave_requests')
+                ->cascadeOnDelete();
+
+            $table->string('original_name');
+            $table->string('path');                          // storage path (e.g. avatars/xxx.pdf equivalent)
+            $table->string('mime_type')->nullable();
+            $table->unsignedBigInteger('size')->nullable();   // bytes
+
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('attachments');
