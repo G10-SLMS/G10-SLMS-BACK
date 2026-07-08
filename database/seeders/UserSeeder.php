@@ -13,6 +13,14 @@ class UserSeeder extends Seeder
 
     public function run(): void
     {
+        // Create default admin user
+        User::create([
+            'name' => 'Sim Hul',
+            'gender' => 'male',
+            'email' => 'sim.hul@passerellesnumeriques.org',
+            'password' => Hash::make('simhul@123'),
+            'role' => 'admin', 
+        ]);
         $password = Hash::make('password');
         $provinces = ['Phnom Penh', 'Siem Reap', 'Battambang', 'Kampong Cham', 'Kandal'];
         $genders = ['male', 'female'];

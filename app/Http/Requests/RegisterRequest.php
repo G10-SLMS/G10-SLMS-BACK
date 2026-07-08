@@ -20,6 +20,7 @@ class RegisterRequest extends FormRequest
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'role' => ['nullable', Rule::in(['admin', 'trainer', 'student'])],
             'trainer_id' => ['nullable', 'exists:users,id'],
+            'id_card' => ['nullable', 'integer', 'min:0'],
 
             // Applies to all roles
             'phone' => ['required', 'string', 'max:20'],

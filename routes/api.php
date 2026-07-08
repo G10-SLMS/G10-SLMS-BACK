@@ -8,11 +8,21 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+// Public routes
+Route::get('/default-avatars', [AuthController::class, 'getDefaultAvatars']);
+
+// Admin routes
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::post('/admin/default-avatars', [AuthController::class, 'uploadDefaultAvatar']);
+});
+
 // Authentication routes (Sanctum)
-Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
-Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:6,1');
-Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:6,1');
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
+
+// Authentication routes (sanctum) -> forgot password
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

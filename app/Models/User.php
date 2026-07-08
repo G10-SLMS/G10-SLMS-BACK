@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -13,16 +14,17 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
+        'gender',
+        'id_card',
+        'generation',
+        'class',
+        'phone',
+        'province',
         'email',
         'password',
-        'avatar',
         'role',
+        'avatar_id',
         'trainer_id',
-        'phone',
-        'class',
-        'generation',
-        'province',
-        'gender',
     ];
 
     protected $hidden = [
@@ -38,19 +40,21 @@ class User extends Authenticatable
         ];
     }
 
-    // student -> trainer
+    public function avatar(): BelongsTo
+    {
+        return $this->belongsTo(Avatar::class);
+    }
+
     public function trainer()
     {
         return $this->belongsTo(User::class, 'trainer_id');
     }
 
-    // trainer -> students
     public function students()
     {
         return $this->hasMany(User::class, 'trainer_id');
     }
 
-    // Check user role
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
@@ -64,5 +68,10 @@ class User extends Authenticatable
     public function isStudent(): bool
     {
         return $this->role === 'student';
+    }
+
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new \App\Notifications\ResetPasswordNotification($token));
     }
 }
