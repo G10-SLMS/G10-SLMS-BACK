@@ -3,47 +3,28 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\RegisterRequest;
+use App\Http\Requests\UpdateProfileRequest;
 use App\Models\Avatar;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    /**
-     * Register a new user
-     * POST /api/register
-     */
-    public function register(Request $request)
+    // Register
+    public function register(RegisterRequest $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'gender' => [
-                'required',
-                'string',
-                Rule::in(['male', 'female', 'other']),
-            ],
-            'id_card' => 'nullable|integer|min:0',
-            'generation' => 'nullable|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => ['required', 'confirmed', PasswordRule::min(8)],
-            'role' => 'nullable|string|in:admin,trainer,student',
-        ]);
+        $data = $request->validated();
+        $data['password'] = Hash::make($data['password']);
+        $data['role'] = $data['role'] ?? 'student';
 
-        $user = User::create([
-            'name' => $request->name,
-            'gender' => $request->gender,
-            'id_card' => $request->id_card,
-            'generation' => $request->generation,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => $request->role ?? 'student',
-        ]);
+        $user = User::create($data);
 
         // Assign default avatar based on gender
         if ($request->gender === 'female') {
@@ -61,24 +42,20 @@ class AuthController extends Controller
         ], 201);
     }
 
-    /**
-     * Login user
-     * POST /api/login
-     */
+    // Login
     public function login(Request $request)
     {
         $request->validate([
             'email' => 'required|email',
-            'password' => 'required',
+            'password' => 'required|string',
         ]);
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
+        $user = User::where('email', $request->email)->first();
+
+        if (! $user || ! Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
-        $user = User::where('email', $request->email)->firstOrFail();
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -87,17 +64,12 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Logout user
-     * POST /api/logout
-     */
+    // Logout
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json([
-            'message' => 'Logged out successfully',
-        ]);
+        return response()->json(['message' => 'Logged out successfully.']);
     }
 
     /**
@@ -106,24 +78,41 @@ class AuthController extends Controller
      */
     public function forgotPassword(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email|exists:users,email',
-        ]);
+        $request->validate(['email' => 'required|email']);
 
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+        Password::sendResetLink($request->only('email'));
 
-        if ($status === Password::RESET_LINK_SENT) {
-            return response()->json([
-                'message' => 'Password reset link sent to your email',
-            ]);
-        }
-
-        throw ValidationException::withMessages([
-            'email' => [__($status)],
+        return response()->json([
+            'message' => 'If an account with that email exists, a password reset link has been sent.',
         ]);
     }
+
+    // Reset Password
+    // public function resetPassword(Request $request)
+    // {
+    //     $request->validate([
+    //         'token' => 'required|string',
+    //         'email' => 'required|email',
+    //         'password' => 'required|string|min:8|confirmed',
+    //     ]);
+
+    //     $status = Password::reset(
+    //         $request->only('email', 'password', 'password_confirmation', 'token'),
+    //         function (User $user, string $password) {
+    //             $user->forceFill(['password' => Hash::make($password), 'remember_token' => null])->setRememberToken(Str::random(60));
+    //             $user->save();
+    //             $user->tokens()->delete();
+
+    //             event(new PasswordReset($user));
+    //         }
+    //     );
+
+    //     if ($status !== Password::PASSWORD_RESET) {
+    //         return response()->json(['message' => __($status)], 422);
+    //     }
+
+    //     return response()->json(['message' => 'Password has been reset successfully.']);
+    // }
 
     /**
      * Reset password with token
@@ -163,91 +152,91 @@ class AuthController extends Controller
      * Update user profile
      * PUT /api/profile
      */
-    public function updateProfile(Request $request)
-    {
-        $user = $request->user();
+    // public function updateProfile(Request $request)
+    // {
+    //     $user = $request->user();
 
-        $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|string|email|max:255|unique:users,email,' . $user->id,
-            'id_card' => 'nullable|integer|min:0',
-            'generation' => 'nullable|string|max:255',
-            'avatar' => 'nullable|image|max:2048',
-            'default_avatar' => 'nullable|string|max:255',
-            'avatar_id' => 'nullable|integer|exists:avatars,id',
-            'current_password' => 'nullable|required_with:password|current_password',
-            'password' => ['nullable', 'confirmed', PasswordRule::min(8)],
-        ]);
+    //     $request->validate([
+    //         'name' => 'sometimes|string|max:255',
+    //         'email' => 'sometimes|string|email|max:255|unique:users,email,' . $user->id,
+    //         'id_card' => 'nullable|integer|min:0',
+    //         'generation' => 'nullable|string|max:255',
+    //         'avatar' => 'nullable|image|max:2048',
+    //         'default_avatar' => 'nullable|string|max:255',
+    //         'avatar_id' => 'nullable|integer|exists:avatars,id',
+    //         'current_password' => 'nullable|required_with:password|current_password',
+    //         'password' => ['nullable', 'confirmed', PasswordRule::min(8)],
+    //     ]);
 
-        if ($request->has('name')) {
-            $user->name = $request->name;
-        }
+    //     if ($request->has('name')) {
+    //         $user->name = $request->name;
+    //     }
 
-        if ($request->has('email')) {
-            $user->email = $request->email;
-        }
+    //     if ($request->has('email')) {
+    //         $user->email = $request->email;
+    //     }
 
-        if ($request->has('id_card')) {
-            $user->id_card = $request->id_card;
-        }
+    //     if ($request->has('id_card')) {
+    //         $user->id_card = $request->id_card;
+    //     }
 
-        if ($request->has('generation')) {
-            $user->generation = $request->generation;
-        }
+    //     if ($request->has('generation')) {
+    //         $user->generation = $request->generation;
+    //     }
 
-        // Handle avatar_id update (direct ID)
-        if ($request->has('avatar_id')) {
-            $user->avatar_id = $request->avatar_id;
-        }
-        // Handle default avatar selection
-        elseif ($request->has('default_avatar')) {
-            $defaultAvatarPath = 'avatars/defaults/' . $request->default_avatar;
+    //     // Handle avatar_id update (direct ID)
+    //     if ($request->has('avatar_id')) {
+    //         $user->avatar_id = $request->avatar_id;
+    //     }
+    //     // Handle default avatar selection
+    //     elseif ($request->has('default_avatar')) {
+    //         $defaultAvatarPath = 'avatars/defaults/' . $request->default_avatar;
 
-            // Verify the default avatar exists in the database
-            $avatar = Avatar::where('path', $defaultAvatarPath)
-                ->where('is_default', true)
-                ->first();
+    //         // Verify the default avatar exists in the database
+    //         $avatar = Avatar::where('path', $defaultAvatarPath)
+    //             ->where('is_default', true)
+    //             ->first();
 
-            if ($avatar) {
-                $user->avatar_id = $avatar->id;
-            }
-        }
-        // Handle custom avatar upload
-        elseif ($request->hasFile('avatar')) {
-            // Delete old avatar record if exists
-            if ($user->avatar_id) {
-                $oldAvatar = Avatar::find($user->avatar_id);
-                if ($oldAvatar && !$oldAvatar->is_default) {
-                    // Delete the file
-                    if (file_exists(public_path('storage/' . $oldAvatar->path))) {
-                        unlink(public_path('storage/' . $oldAvatar->path));
-                    }
-                    $oldAvatar->delete();
-                }
-            }
+    //         if ($avatar) {
+    //             $user->avatar_id = $avatar->id;
+    //         }
+    //     }
+    //     // Handle custom avatar upload
+    //     elseif ($request->hasFile('avatar')) {
+    //         // Delete old avatar record if exists
+    //         if ($user->avatar_id) {
+    //             $oldAvatar = Avatar::find($user->avatar_id);
+    //             if ($oldAvatar && !$oldAvatar->is_default) {
+    //                 // Delete the file
+    //                 if (file_exists(public_path('storage/' . $oldAvatar->path))) {
+    //                     unlink(public_path('storage/' . $oldAvatar->path));
+    //                 }
+    //                 $oldAvatar->delete();
+    //             }
+    //         }
 
-            // Create new avatar record
-            $path = $request->file('avatar')->store('avatars', 'public');
-            $avatar = Avatar::create([
-                'filename' => basename($path),
-                'path' => $path,
-                'is_default' => false,
-            ]);
+    //         // Create new avatar record
+    //         $path = $request->file('avatar')->store('avatars', 'public');
+    //         $avatar = Avatar::create([
+    //             'filename' => basename($path),
+    //             'path' => $path,
+    //             'is_default' => false,
+    //         ]);
 
-            $user->avatar_id = $avatar->id;
-        }
+    //         $user->avatar_id = $avatar->id;
+    //     }
 
-        if ($request->has('password')) {
-            $user->password = Hash::make($request->password);
-        }
+    //     if ($request->has('password')) {
+    //         $user->password = Hash::make($request->password);
+    //     }
 
-        $user->save();
+    //     $user->save();
 
-        return response()->json([
-            'user' => $user->load('avatar'),
-            'message' => 'Profile updated successfully',
-        ]);
-    }
+    //     return response()->json([
+    //         'user' => $user->load('avatar'),
+    //         'message' => 'Profile updated successfully',
+    //     ]);
+    // }
 
     /**
      * Get authenticated user
@@ -255,9 +244,38 @@ class AuthController extends Controller
      */
     public function profile(Request $request)
     {
+        return response()->json($request->user());
+    }
+
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        $data = $request->validated();
+
+        // Upload new avatar
+        if ($request->hasFile('avatar')) {
+
+            // Delete old avatar if it exists
+            if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+
+            $data['avatar'] = $request->file('avatar')->store('avatars', 'public');
+        }
+
+        // Hash password only if provided
+        if (! empty($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
+        } else {
+            unset($data['password']);
+        }
+
+        $user->update($data);
+
         return response()->json([
-            'user' => $request->user(),
-        ]);
+            'message' => 'Profile updated successfully.',
+            'user' => $user->fresh(),
+        ], 200);
     }
 
     /**

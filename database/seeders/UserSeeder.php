@@ -9,9 +9,8 @@ use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
+    use WithoutModelEvents;
+
     public function run(): void
     {
         // Create default admin user
@@ -22,5 +21,70 @@ class UserSeeder extends Seeder
             'password' => Hash::make('simhul@123'),
             'role' => 'admin', 
         ]);
+        $password = Hash::make('password');
+        $provinces = ['Phnom Penh', 'Siem Reap', 'Battambang', 'Kampong Cham', 'Kandal'];
+        $genders = ['male', 'female'];
+
+        // 1 admin
+        User::updateOrCreate(
+            ['email' => 'admin@slms.test'],
+            [
+                'name' => 'System Admin',
+                'password' => $password,
+                'role' => 'admin',
+                'phone' => '012345678',
+                'email_verified_at' => now(),
+            ]
+        );
+
+        // 3 trainers
+        $trainerNames = ['Sophal Chan', 'Dara Vann', 'Kunthea Lim'];
+        $trainers = collect($trainerNames)->map(function (string $name, int $i) use ($password) {
+            return User::updateOrCreate(
+                ['email' => 'trainer'.($i + 1).'@slms.test'],
+                [
+                    'name' => $name,
+                    'password' => $password,
+                    'role' => 'trainer',
+                    'phone' => '01234567'.$i,
+                    'email_verified_at' => now(),
+                ]
+            );
+        });
+
+        // 10 students, round-robin assigned to the trainers above
+        for ($i = 1; $i <= 10; $i++) {
+            $trainer = $trainers[($i - 1) % $trainers->count()];
+
+            User::updateOrCreate(
+                ['email' => "student{$i}@slms.test"],
+                [
+                    'name' => "Student {$i}",
+                    'password' => $password,
+                    'role' => 'student',
+                    'trainer_id' => $trainer->id,
+                    'phone' => '09' . str_pad((string) $i, 7, '0', STR_PAD_LEFT),
+                    'class' => 'Web 2026B'.(($i % 3) + 1),
+                    'generation' => '2026',
+                    'province' => $provinces[$i % count($provinces)],
+                    'gender' => $genders[$i % 2],
+                    'email_verified_at' => now(),
+                ]
+            );
+        }
+
+        // A handful of extra random students via the factory, spread across trainers
+        User::factory()
+            ->count(5)
+            ->sequence(fn ($sequence) => [
+                'role' => 'student',
+                'trainer_id' => $trainers[$sequence->index % $trainers->count()]->id,
+                'phone' => '08' . str_pad((string) $sequence->index, 7, '0', STR_PAD_LEFT),
+                'class' => 'Web B2C'.(($sequence->index % 3) + 1),
+                'generation' => '2026',
+                'province' => $provinces[$sequence->index % count($provinces)],
+                'gender' => $genders[$sequence->index % 2],
+            ])
+            ->create();
     }
 }
