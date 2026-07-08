@@ -21,7 +21,7 @@ class UpdateProfileRequest extends FormRequest
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'email' => ['sometimes', 'required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'password' => ['sometimes', 'nullable', 'string', 'min:8', 'confirmed'],
-            'avatar' => ['sometimes', 'nullable', 'image', 'max:2048'], // 2MB max
+            'avatar_id' => ['sometimes', 'nullable', 'integer', 'exists:avatars,id'], // pick an existing avatar — no custom uploads allowed
 
             // Applies to all roles
             'phone' => ['sometimes', 'required', 'string', 'max:20'],
