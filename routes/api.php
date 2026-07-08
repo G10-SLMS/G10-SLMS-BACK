@@ -19,7 +19,10 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 // Authentication routes (Sanctum)
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
+// Authentication routes (sanctum) -> forgot password
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

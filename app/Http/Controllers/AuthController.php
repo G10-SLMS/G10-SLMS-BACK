@@ -126,6 +126,40 @@ class AuthController extends Controller
     }
 
     /**
+     * Reset password with token
+     * POST /api/reset-password
+     */
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'token' => 'required|string',
+            'password' => ['required', 'confirmed', PasswordRule::min(8)],
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'token', 'password', 'password_confirmation'),
+            function ($user, $password) {
+                $user->password = Hash::make($password);
+                $user->save();
+                
+                // Delete all Sanctum tokens to log user out from all devices
+                $user->tokens()->delete();
+            }
+        );
+
+        if ($status === Password::PASSWORD_RESET) {
+            return response()->json([
+                'message' => 'Password reset successfully',
+            ]);
+        }
+
+        throw ValidationException::withMessages([
+            'email' => [__($status)],
+        ]);
+    }
+
+    /**
      * Update user profile
      * PUT /api/profile
      */
