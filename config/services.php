@@ -38,15 +38,13 @@ return [
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        // Must exactly match an "Authorized redirect URI" in the Google Cloud Console.
-        'redirect' => env('GOOGLE_REDIRECT_URI', 'http://localhost:5173/auth/google/callback'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
     'github' => [
         'client_id' => env('GITHUB_CLIENT_ID'),
         'client_secret' => env('GITHUB_CLIENT_SECRET'),
-        // Must exactly match the "Authorization callback URL" on the GitHub OAuth App.
-        'redirect' => env('GITHUB_REDIRECT_URI', 'http://localhost:5173/auth/github/callback'),
+        'redirect' => env('GITHUB_REDIRECT_URI'),
     ],
 
 ];

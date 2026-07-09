@@ -4,120 +4,109 @@ namespace App\Services;
 
 use App\Models\Avatar;
 use App\Models\User;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Laravel\Socialite\Facades\Socialite;
+use Throwable;
 
 class SocialAuthService
 {
-    public function loginWithGoogleCode(string $code, ?string $redirectUri = null): User
+    private const ALLOWED_PROVIDERS = ['google', 'github'];
+
+    private const STATE_TTL_MINUTES = 10;
+
+    public function redirect(string $provider): RedirectResponse
     {
-        $tokenResponse = Http::asForm()->post('https://oauth2.googleapis.com/token', [
-            'code' => $code,
-            'client_id' => config('services.google.client_id'),
-            'client_secret' => config('services.google.client_secret'),
-            'redirect_uri' => $redirectUri ?? config('services.google.redirect'),
-            'grant_type' => 'authorization_code',
-        ]);
+        $this->ensureProviderAllowed($provider);
 
-        if ($tokenResponse->failed()) {
-            throw ValidationException::withMessages([
-                'code' => ['Could not verify Google authorization code.'],
-            ]);
-        }
+        /** @var \Laravel\Socialite\Two\AbstractProvider $driver */
+        $driver = Socialite::driver($provider);
 
-        $accessToken = $tokenResponse->json('access_token');
-
-        $profileResponse = Http::withToken($accessToken)
-            ->get('https://www.googleapis.com/oauth2/v3/userinfo');
-
-        if ($profileResponse->failed() || ! $profileResponse->json('email')) {
-            throw ValidationException::withMessages([
-                'code' => ['Could not fetch Google profile.'],
-            ]);
-        }
-
-        $profile = $profileResponse->json();
-
-        return $this->findOrCreateUser(
-            email: $profile['email'],
-            name: $profile['name'] ?? $profile['email'],
-        );
+        return $driver
+            ->stateless()
+            ->with(['state' => $this->generateState()])
+            ->redirect();
     }
 
-    public function loginWithGithubCode(string $code, ?string $redirectUri = null): User
+    public function handleCallback(string $provider, string $code, string $state, string $redirectUri): array
     {
-        $tokenResponse = Http::asForm()
-            ->withHeaders(['Accept' => 'application/json'])
-            ->post('https://github.com/login/oauth/access_token', [
-                'code' => $code,
-                'client_id' => config('services.github.client_id'),
-                'client_secret' => config('services.github.client_secret'),
-                'redirect_uri' => $redirectUri ?? config('services.github.redirect'),
-            ]);
+        $this->ensureProviderAllowed($provider);
+        $this->verifyState($state);
 
-        if ($tokenResponse->failed() || ! $tokenResponse->json('access_token')) {
+        request()->merge(['code' => $code]);
+
+        /** @var \Laravel\Socialite\Two\AbstractProvider $driver */
+        $driver = Socialite::driver($provider);
+
+        $socialUser = $driver
+            ->stateless()
+            ->redirectUrl($redirectUri)
+            ->user();
+
+        if (! $socialUser->getEmail()) {
             throw ValidationException::withMessages([
-                'code' => ['Could not verify GitHub authorization code.'],
+                'email' => ["{$provider} did not provide an email address for this account."],
             ]);
         }
 
-        $accessToken = $tokenResponse->json('access_token');
+        $user = User::firstOrNew(['email' => $socialUser->getEmail()]);
 
-        $profileResponse = Http::withToken($accessToken)
-            ->withHeaders(['Accept' => 'application/vnd.github+json'])
-            ->get('https://api.github.com/user');
+        if (! $user->exists) {
+            $user->name = $socialUser->getName() ?? $socialUser->getNickname() ?? 'User';
+            $user->password = Hash::make(Str::random(40));
+            $user->role = 'student';
+            $user->save();
 
-        if ($profileResponse->failed()) {
-            throw ValidationException::withMessages([
-                'code' => ['Could not fetch GitHub profile.'],
-            ]);
+            $this->assignDefaultAvatar($user);
         }
 
-        $profile = $profileResponse->json();
-        $email = $profile['email'] ?? null;
+        $token = $user->createToken('auth_token')->plainTextToken;
 
-        if (! $email) {
-            $emailsResponse = Http::withToken($accessToken)
-                ->withHeaders(['Accept' => 'application/vnd.github+json'])
-                ->get('https://api.github.com/user/emails');
-
-            if ($emailsResponse->successful()) {
-                $emails = collect($emailsResponse->json());
-                $email = $emails->firstWhere('primary', true)['email']
-                    ?? $emails->first()['email']
-                    ?? null;
-            }
-        }
-
-        if (! $email) {
-            throw ValidationException::withMessages([
-                'code' => ['Your GitHub account has no accessible email address. Please make an email public or use another sign-in method.'],
-            ]);
-        }
-
-        return $this->findOrCreateUser(
-            email: $email,
-            name: $profile['name'] ?? $profile['login'],
-        );
+        return ['user' => $user, 'token' => $token];
     }
 
-    protected function findOrCreateUser(string $email, string $name): User
+    private function ensureProviderAllowed(string $provider): void
     {
-        $user = User::where('email', $email)->first();
+        if (! in_array($provider, self::ALLOWED_PROVIDERS, true)) {
+            abort(404, 'Unsupported provider.');
+        }
+    }
 
-        if ($user) {
-            return $user;
+    private function generateState(): string
+    {
+        return Crypt::encryptString(json_encode([
+            'nonce' => Str::random(40),
+            'expires_at' => now()->addMinutes(self::STATE_TTL_MINUTES)->timestamp,
+        ]));
+    }
+
+    private function verifyState(string $state): void
+    {
+        try {
+            $payload = json_decode(Crypt::decryptString($state), true, flags: JSON_THROW_ON_ERROR);
+        } catch (Throwable) {
+            throw ValidationException::withMessages([
+                'state' => ['Invalid or tampered sign-in request.'],
+            ]);
         }
 
+        if (($payload['expires_at'] ?? 0) < now()->timestamp) {
+            throw ValidationException::withMessages([
+                'state' => ['Your sign-in session expired. Please try again.'],
+            ]);
+        }
+    }
+
+    private function assignDefaultAvatar(User $user): void
+    {
         $defaultAvatar = Avatar::where('is_default', true)->inRandomOrder()->first();
 
-        return User::create([
-            'name' => $name,
-            'email' => $email,
-            'password' => Str::random(40),
-            'role' => 'student',
-            'avatar_id' => $defaultAvatar?->id,
-        ]);
+        if ($defaultAvatar) {
+            $user->avatar_id = $defaultAvatar->id;
+            $user->save();
+        }
     }
 }

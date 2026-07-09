@@ -8,6 +8,7 @@ use App\Models\Avatar;
 use App\Models\User;
 use App\Services\SocialAuthService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -65,44 +66,50 @@ class AuthController extends Controller
         ]);
     }
 
+    public function redirectToGoogle(): RedirectResponse
+    {
+        return $this->socialAuth->redirect('google');
+    }
+
+    public function redirectToGithub(): RedirectResponse
+    {
+        return $this->socialAuth->redirect('github');
+    }
+
     public function googleLogin(Request $request)
     {
         $request->validate([
             'code' => ['required', 'string'],
-            'redirect_uri' => ['nullable', 'string'],
+            'redirect_uri' => ['required', 'string'],
+            'state' => ['required', 'string'],
         ]);
 
-        $user = $this->socialAuth->loginWithGoogleCode(
-            $request->string('code'),
+        $result = $this->socialAuth->handleCallback(
+            'google',
+            $request->input('code'),
+            $request->input('state'),
             $request->input('redirect_uri'),
         );
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'user' => $user,
-            'token' => $token,
-        ]);
+        return response()->json($result);
     }
 
     public function githubLogin(Request $request)
     {
         $request->validate([
             'code' => ['required', 'string'],
-            'redirect_uri' => ['nullable', 'string'],
+            'redirect_uri' => ['required', 'string'],
+            'state' => ['required', 'string'],
         ]);
 
-        $user = $this->socialAuth->loginWithGithubCode(
-            $request->string('code'),
+        $result = $this->socialAuth->handleCallback(
+            'github',
+            $request->input('code'),
+            $request->input('state'),
             $request->input('redirect_uri'),
         );
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'user' => $user,
-            'token' => $token,
-        ]);
+        return response()->json($result);
     }
 
     public function logout(Request $request)
