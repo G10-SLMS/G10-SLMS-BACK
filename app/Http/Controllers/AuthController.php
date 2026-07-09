@@ -6,6 +6,7 @@ use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Models\Avatar;
 use App\Models\User;
+use App\Services\SocialAuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -15,6 +16,11 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function __construct(protected SocialAuthService $socialAuth)
+    {
+        //
+    }
+
     public function register(RegisterRequest $request)
     {
         $data = $request->validated();
@@ -23,8 +29,6 @@ class AuthController extends Controller
 
         $user = User::create($data);
 
-        // Gender isn't collected at registration anymore, so just assign
-        // any random default avatar. It can be refined later via updateProfile.
         $defaultAvatar = Avatar::where('is_default', true)->inRandomOrder()->first();
 
         if ($defaultAvatar) {
@@ -52,6 +56,46 @@ class AuthController extends Controller
         if (! $user || ! Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'user' => $user,
+            'token' => $token,
+        ]);
+    }
+
+    public function googleLogin(Request $request)
+    {
+        $request->validate([
+            'code' => ['required', 'string'],
+            'redirect_uri' => ['nullable', 'string'],
+        ]);
+
+        $user = $this->socialAuth->loginWithGoogleCode(
+            $request->string('code'),
+            $request->input('redirect_uri'),
+        );
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'user' => $user,
+            'token' => $token,
+        ]);
+    }
+
+    public function githubLogin(Request $request)
+    {
+        $request->validate([
+            'code' => ['required', 'string'],
+            'redirect_uri' => ['nullable', 'string'],
+        ]);
+
+        $user = $this->socialAuth->loginWithGithubCode(
+            $request->string('code'),
+            $request->input('redirect_uri'),
+        );
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
