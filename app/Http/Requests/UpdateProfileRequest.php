@@ -21,7 +21,7 @@ class UpdateProfileRequest extends FormRequest
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'email' => ['sometimes', 'required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'password' => ['sometimes', 'nullable', 'string', 'min:8', 'confirmed'],
-            'avatar_id' => ['sometimes', 'nullable', 'integer', 'exists:avatars,id'], // pick an existing avatar — no custom uploads allowed
+            'avatar_id' => ['sometimes', 'nullable', 'integer', Rule::exists('avatars', 'id')->where('is_default', true)],
 
             // Applies to all roles
             'phone' => ['sometimes', 'required', 'string', 'max:20'],
@@ -37,6 +37,7 @@ class UpdateProfileRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'avatar_id.exists' => 'Please choose a valid avatar.',
             'class.required' => 'The class field is required for students.',
             'generation.required' => 'The generation field is required for students.',
             'province.required' => 'The province field is required for students.',
