@@ -23,11 +23,9 @@ class AuthController extends Controller
 
         $user = User::create($data);
 
-        $defaultAvatar = Avatar::where('is_default', true)
-            ->where('gender', $request->gender)
-            ->inRandomOrder()
-            ->first()
-            ?? Avatar::where('is_default', true)->inRandomOrder()->first();
+        // Gender isn't collected at registration anymore, so just assign
+        // any random default avatar. It can be refined later via updateProfile.
+        $defaultAvatar = Avatar::where('is_default', true)->inRandomOrder()->first();
 
         if ($defaultAvatar) {
             $user->avatar_id = $defaultAvatar->id;
@@ -117,14 +115,6 @@ class AuthController extends Controller
         $user = $request->user();
         $data = $request->validated();
 
-        if ($request->filled('avatar_id')) {
-            // Users can only pick one of the avatars already in the avatars
-            // table (typically the defaults) — custom uploads are not
-            // allowed here; the exists:avatars,id rule already confirmed
-            // the id is valid.
-            $data['avatar_id'] = $request->integer('avatar_id');
-        }
-
         if (! empty($data['password'])) {
             $data['password'] = Hash::make($data['password']);
         } else {
@@ -135,7 +125,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Profile updated successfully.',
-            'user' => $user->fresh()->load('avatar'),
+            'user' => $user->fresh(),
         ], 200);
     }
 
