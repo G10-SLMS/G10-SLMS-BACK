@@ -11,16 +11,14 @@ Route::get('/user', function (Request $request) {
 // Public routes
 Route::get('/default-avatars', [AuthController::class, 'getDefaultAvatars']);
 
-// Admin routes
-Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+// Admin-only route — demonstrates role middleware working end-to-end
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::post('/admin/default-avatars', [AuthController::class, 'uploadDefaultAvatar']);
 });
 
 // Authentication routes (Sanctum)
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-
-// Authentication routes (sanctum) -> forgot password
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
