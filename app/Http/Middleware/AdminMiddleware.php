@@ -8,14 +8,13 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AdminMiddleware
 {
-    public function handle(Request $request, Closure $next): Response
-    {
-        if (!$request->user() || $request->user()->role !== 'admin') {
-            return response()->json([
-                'message' => 'Unauthorized. Admin access only.'
-            ], 403);
-        }
+    public function handle(Request $request, Closure $next): Response {
+     if (!$request->user() || $request->user()->role !== 'admin') {
+        return response()->json([
+            'message' => 'Unauthorized. Admin access only.'
+        ], 403);
+    }
 
-        return $next($request);
+    return $next($request);
     }
 }

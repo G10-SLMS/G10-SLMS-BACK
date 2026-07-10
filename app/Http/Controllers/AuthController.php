@@ -23,8 +23,6 @@ class AuthController extends Controller
 
         $user = User::create($data);
 
-        // Gender isn't collected at registration anymore, so just assign
-        // any random default avatar. It can be refined later via updateProfile.
         $defaultAvatar = Avatar::where('is_default', true)->inRandomOrder()->first();
 
         if ($defaultAvatar) {
