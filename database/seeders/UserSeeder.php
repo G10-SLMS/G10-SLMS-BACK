@@ -19,7 +19,7 @@ class UserSeeder extends Seeder
             'gender' => 'male',
             'email' => 'sim.hul@passerellesnumeriques.org',
             'password' => Hash::make('simhul@123'),
-            'role' => 'admin', 
+            'role' => 'admin',
         ]);
         $password = Hash::make('password');
         $provinces = ['Phnom Penh', 'Siem Reap', 'Battambang', 'Kampong Cham', 'Kandal'];
@@ -51,6 +51,41 @@ class UserSeeder extends Seeder
                 ]
             );
         });
+
+        // Demo accounts used by the login page's quick-fill buttons.
+        // Both are role=student — "fellow" is just a different email
+        // domain convention (student.* vs fellow.*), not a separate role.
+        User::updateOrCreate(
+            ['email' => 'demo.student@student.passerellesnumeriques.org'],
+            [
+                'name' => 'Demo Student',
+                'password' => Hash::make('password123'),
+                'role' => 'student',
+                'trainer_id' => $trainers[0]->id,
+                'phone' => '012000001',
+                'class' => 'Web B2C1',
+                'generation' => '2026',
+                'province' => 'Phnom Penh',
+                'gender' => 'male',
+                'email_verified_at' => now(),
+            ]
+        );
+
+        User::updateOrCreate(
+            ['email' => 'demo.fellow@fellow.passerellesnumeriques.org'],
+            [
+                'name' => 'Demo Fellow',
+                'password' => Hash::make('password123'),
+                'role' => 'student',
+                'trainer_id' => $trainers[0]->id,
+                'phone' => '012000002',
+                'class' => 'Web B2C1',
+                'generation' => '2026',
+                'province' => 'Phnom Penh',
+                'gender' => 'female',
+                'email_verified_at' => now(),
+            ]
+        );
 
         // 10 students, round-robin assigned to the trainers above
         for ($i = 1; $i <= 10; $i++) {
