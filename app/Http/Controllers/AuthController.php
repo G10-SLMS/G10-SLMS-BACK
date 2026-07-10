@@ -6,9 +6,7 @@ use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Models\Avatar;
 use App\Models\User;
-use App\Services\SocialAuthService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -17,11 +15,6 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function __construct(protected SocialAuthService $socialAuth)
-    {
-        //
-    }
-
     public function register(RegisterRequest $request)
     {
         $data = $request->validated();
@@ -64,52 +57,6 @@ class AuthController extends Controller
             'user' => $user,
             'token' => $token,
         ]);
-    }
-
-    public function redirectToGoogle(): RedirectResponse
-    {
-        return $this->socialAuth->redirect('google');
-    }
-
-    public function redirectToGithub(): RedirectResponse
-    {
-        return $this->socialAuth->redirect('github');
-    }
-
-    public function googleLogin(Request $request)
-    {
-        $request->validate([
-            'code' => ['required', 'string'],
-            'redirect_uri' => ['required', 'string'],
-            'state' => ['required', 'string'],
-        ]);
-
-        $result = $this->socialAuth->handleCallback(
-            'google',
-            $request->input('code'),
-            $request->input('state'),
-            $request->input('redirect_uri'),
-        );
-
-        return response()->json($result);
-    }
-
-    public function githubLogin(Request $request)
-    {
-        $request->validate([
-            'code' => ['required', 'string'],
-            'redirect_uri' => ['required', 'string'],
-            'state' => ['required', 'string'],
-        ]);
-
-        $result = $this->socialAuth->handleCallback(
-            'github',
-            $request->input('code'),
-            $request->input('state'),
-            $request->input('redirect_uri'),
-        );
-
-        return response()->json($result);
     }
 
     public function logout(Request $request)

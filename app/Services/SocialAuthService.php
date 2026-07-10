@@ -14,14 +14,10 @@ use Throwable;
 
 class SocialAuthService
 {
-    private const ALLOWED_PROVIDERS = ['google', 'github'];
-
     private const STATE_TTL_MINUTES = 10;
 
     public function redirect(string $provider): RedirectResponse
     {
-        $this->ensureProviderAllowed($provider);
-
         /** @var \Laravel\Socialite\Two\AbstractProvider $driver */
         $driver = Socialite::driver($provider);
 
@@ -33,7 +29,6 @@ class SocialAuthService
 
     public function handleCallback(string $provider, string $code, string $state, string $redirectUri): array
     {
-        $this->ensureProviderAllowed($provider);
         $this->verifyState($state);
 
         request()->merge(['code' => $code]);
@@ -66,13 +61,6 @@ class SocialAuthService
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return ['user' => $user, 'token' => $token];
-    }
-
-    private function ensureProviderAllowed(string $provider): void
-    {
-        if (! in_array($provider, self::ALLOWED_PROVIDERS, true)) {
-            abort(404, 'Unsupported provider.');
-        }
     }
 
     private function generateState(): string
