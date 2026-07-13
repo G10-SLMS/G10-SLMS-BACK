@@ -15,12 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => RoleMiddleware::class,
-        ]);
-
-        $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'cors' => \App\Http\Middleware\CorsMiddleware::class,
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions): void {
+ ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
