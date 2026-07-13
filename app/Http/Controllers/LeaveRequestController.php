@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\LeaveRequest;
+use App\Http\Requests\StoreLeaveRequest;
+use App\Http\Requests\UpdateLeaveRequest;
 use Illuminate\Http\Request;
 
 class LeaveRequestController extends Controller
@@ -10,40 +13,128 @@ class LeaveRequestController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    /**
+     * GET /api/leave-requests
+     * Trainer/Admin: all requests | Student: own only
+     */
+    public function index(Request $request)
     {
-        //
+        $query = LeaveRequest::with(['leaveType', 'user']);
+
+        if ($request->user()->role === 'student') {
+            $query->where('user_id', $request->user()->id);
+        }
+
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        return response()->json(
+            $query->latest()->paginate(10)
+        );
     }
 
     /**
-     * Store a newly created resource in storage.
+     * POST /api/leave-requests
+     * Student only
      */
-    public function store(Request $request)
+    public function store(StoreLeaveRequest $request)
     {
-        //
+        $leave = LeaveRequest::create([
+            ...$request->validated(),
+            'user_id' => $request->user()->id,
+            'status' => 'pending',
+        ]);
+
+        return response()->json($leave->load('leaveType'), 201);
     }
 
     /**
-     * Display the specified resource.
+     * GET /api/leave-requests/{id}
+     * Student/Trainer/Admin
      */
-    public function show(string $id)
+    public function show(Request $request, LeaveRequest $leaveRequest)
     {
-        //
+        if ($request->user()->role === 'student' && $leaveRequest->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        return response()->json($leaveRequest->load(['leaveType', 'user', 'reviewer']));
     }
 
     /**
-     * Update the specified resource in storage.
+     * PUT /api/leave-requests/{id}
+     * Student only, before approval
      */
-    public function update(Request $request, string $id)
+    public function update(UpdateLeaveRequest $request, LeaveRequest $leaveRequest)
     {
-        //
+        if ($leaveRequest->status !== 'pending') {
+            return response()->json([
+                'message' => 'Cannot edit a request that has already been reviewed.'
+            ], 422);
+        }
+
+        $leaveRequest->update($request->validated());
+
+        return response()->json($leaveRequest->load('leaveType'));
     }
 
     /**
-     * Remove the specified resource from storage.
+     * DELETE /api/leave-requests/{id}
+     * Student only, cancel pending request
      */
-    public function destroy(string $id)
+    public function destroy(Request $request, LeaveRequest $leaveRequest)
     {
-        //
+        if ($leaveRequest->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($leaveRequest->status !== 'pending') {
+            return response()->json([
+                'message' => 'Cannot cancel a request that has already been reviewed.'
+            ], 422);
+        }
+
+        $leaveRequest->delete();
+
+        return response()->json(['message' => 'Leave request cancelled']);
+    }
+
+    /**
+     * POST /api/approve/{id}
+     * Trainer only
+     */
+    public function approve(Request $request, LeaveRequest $leaveRequest)
+    {
+        if ($leaveRequest->status !== 'pending') {
+            return response()->json(['message' => 'This request has already been reviewed.'], 422);
+        }
+
+        $leaveRequest->update([
+            'status' => 'approved',
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+        ]);
+
+        return response()->json($leaveRequest->load('leaveType'));
+    }
+
+    /**
+     * POST /api/reject/{id}
+     * Trainer only
+     */
+    public function reject(Request $request, LeaveRequest $leaveRequest)
+    {
+        if ($leaveRequest->status !== 'pending') {
+            return response()->json(['message' => 'This request has already been reviewed.'], 422);
+        }
+
+        $leaveRequest->update([
+            'status' => 'rejected',
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+        ]);
+
+        return response()->json($leaveRequest->load('leaveType'));
     }
 }

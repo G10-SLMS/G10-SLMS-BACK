@@ -31,4 +31,12 @@ class RoleMiddleware
 
         return $next($request);
     }
+     public function handle(Request $request, Closure $next, ...$roles)
+    {
+        if (!in_array($request->user()->role, $roles)) {
+            return response()->json(['message' => 'Unauthorized. Insufficient role.'], 403);
+        }
+
+        return $next($request);
+    }
 }

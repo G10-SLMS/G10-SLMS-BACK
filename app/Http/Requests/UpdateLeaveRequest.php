@@ -12,18 +12,17 @@ class UpdateLeaveRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        $leave = $this->route('leave_request');
+        return $leave && $this->user()->id === $leave->user_id;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            //
+            'leave_type_id' => ['sometimes', 'exists:leave_types,id'],
+            'start_date' => ['sometimes', 'date'],
+            'end_date' => ['sometimes', 'date', 'after_or_equal:start_date'],
+            'reason' => ['sometimes', 'string', 'min:5', 'max:500'],
         ];
     }
 }

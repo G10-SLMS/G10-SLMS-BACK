@@ -12,18 +12,24 @@ class StoreLeaveRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true; // route-level 'role:student' middleware already restricts this
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            //
+            'leave_type_id' => ['required', 'exists:leave_types,id'],
+            'start_date' => ['required', 'date', 'after_or_equal:today'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'end_date.after_or_equal' => 'End date cannot be before start date.',
+            'start_date.after_or_equal' => 'Start date cannot be in the past.',
         ];
     }
 }
