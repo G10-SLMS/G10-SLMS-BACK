@@ -59,7 +59,11 @@ class LeaveTypeController extends Controller
      */
     public function show(string $id)
     {
-
+        $leaveType = LeaveType::findOrFail($id);
+        return response()->json([
+            'success' => true,
+            'data' => $leaveType
+        ], 200);
     }
 
     /**
