@@ -73,6 +73,7 @@ class LeaveTypeController extends Controller
 
         return response()->json([
             'success' => true,
+            'message' => 'Leave type is retrieved successfully',
             'data' => $leaveType
         ], 200);
     }
