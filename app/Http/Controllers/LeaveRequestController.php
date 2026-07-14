@@ -97,7 +97,7 @@ class LeaveRequestController extends Controller
 
         $leaveRequest->delete();
 
-        return response()->json(['message' => 'Leave request cancelled']);
+        return response()->json(['message' => 'Leave request cancelled'], 200);
     }
 
     /**

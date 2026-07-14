@@ -12,7 +12,7 @@ class UpdateLeaveRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        $leave = $this->route('leave_request');
+        $leave = $this->route('leaveRequest');
         return $leave && $this->user()->id === $leave->user_id;
     }
 
