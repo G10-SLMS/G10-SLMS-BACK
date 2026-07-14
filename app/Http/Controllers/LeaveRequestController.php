@@ -59,7 +59,7 @@ class LeaveRequestController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        return response()->json($leaveRequest->load(['leaveType', 'user', 'reviewer']));
+        return response()->json($leaveRequest->load(['leaveType', 'user', 'approver']));
     }
 
     /**
@@ -112,8 +112,9 @@ class LeaveRequestController extends Controller
 
         $leaveRequest->update([
             'status' => 'approved',
-            'reviewed_by' => $request->user()->id,
-            'reviewed_at' => now(),
+            'approved_by' => $request->user()->id,
+            // 'reviewed_by' => $request->user()->id,
+            // 'reviewed_at' => now(),
         ]);
 
         return response()->json($leaveRequest->load('leaveType'));
@@ -131,8 +132,10 @@ class LeaveRequestController extends Controller
 
         $leaveRequest->update([
             'status' => 'rejected',
-            'reviewed_by' => $request->user()->id,
-            'reviewed_at' => now(),
+            'approved_by' => $request->user()->id,
+
+            // 'reviewed_by' => $request->user()->id,
+            // 'reviewed_at' => now(),
         ]);
 
         return response()->json($leaveRequest->load('leaveType'));

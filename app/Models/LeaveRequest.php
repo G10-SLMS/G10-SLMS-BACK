@@ -46,6 +46,7 @@ class LeaveRequest extends Model
         'end_date',
         'reason',
         'status',
+        'approved_by',
         'reviewed_by',
         'review_note',
         'reviewed_at',
@@ -67,9 +68,9 @@ class LeaveRequest extends Model
         return $this->belongsTo(LeaveType::class);
     }
 
-    public function reviewer(): BelongsTo
+    public function approver(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'reviewed_by');
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     public function comments(): HasMany

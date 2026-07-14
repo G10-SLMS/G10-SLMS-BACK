@@ -11,13 +11,13 @@ return new class extends Migration
         Schema::create('leave_requests', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('user_id')                   // the student requesting leave
+            $table->foreignId('user_id')
                 ->constrained('users')
                 ->cascadeOnDelete();
 
             $table->foreignId('leave_type_id')
                 ->constrained('leave_types')
-                ->restrictOnDelete();                       // don't allow deleting a leave type in use
+                ->restrictOnDelete();
 
             $table->date('start_date');
             $table->date('end_date');
@@ -26,16 +26,15 @@ return new class extends Migration
             $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled'])
                 ->default('pending');
 
-            $table->foreignId('reviewed_by')                // trainer/admin who approved/rejected
+            $table->foreignId('approved_by')
                 ->nullable()
                 ->constrained('users')
                 ->nullOnDelete();
 
-            $table->text('review_note')->nullable();
-            $table->timestamp('reviewed_at')->nullable();
-
             $table->timestamps();
 
+            $table->index('user_id');
+            $table->index('status');
             $table->index(['user_id', 'status']);
         });
     }
