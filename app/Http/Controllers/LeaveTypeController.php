@@ -59,7 +59,16 @@ class LeaveTypeController extends Controller
      */
     public function show(string $id)
     {
-        $leaveType = LeaveType::findOrFail($id);
+        $leaveType = LeaveType::find($id);
+        
+        // Return HTTP 404 if Leave type not found
+        if (!$leaveType) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Leave type not found.'
+            ], 404);
+        }
+
         return response()->json([
             'success' => true,
             'data' => $leaveType
