@@ -72,23 +72,14 @@ class LeaveTypeController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $leaveType = LeaveType::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|string|max:255|unique:leave_types,name,' .$id,
-            'code' => 'sometimes|string|max:50|unique:leave_types,code,' .$id,
+            'name' => 'sometimes|string|max:255|unique:leave_types,name,' . $id,
+            'code' => 'sometimes|string|max:50|unique:leave_types,code,' . $id,
             'description' => 'nullable|string|max:1000',
             'max_days_per_year' => 'sometimes|integer|min:0',
             'is_active' => 'boolean',
         ]);
-
-        // Returns HTTP 404 Not Found if the leave types does not exist.
-        if (!$leaveType) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Leave type not found.'
-            ], 404);
-        }
 
         // Validation errors return HTTP 422 Unprocessable Entity.
         if ($validator->fails()) {
@@ -96,6 +87,15 @@ class LeaveTypeController extends Controller
                 'success' => false,
                 'errors' => $validator->errors()
             ], 422);
+        }
+
+        // Returns HTTP 404 Not Found if the leave types does not exist.
+        $leaveType = LeaveType::find($id);
+        if (!$leaveType) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Leave type not found.'
+            ], 404);
         }
 
         $leaveType->update($request->all());
@@ -106,7 +106,6 @@ class LeaveTypeController extends Controller
             'message' => 'Leave type updated successfully',
             'data' => $leaveType
         ], 200);
-
     }
 
     /**
