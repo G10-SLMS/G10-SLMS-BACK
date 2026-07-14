@@ -68,10 +68,45 @@ class LeaveTypeController extends Controller
 
     /**
      * Update the specified resource in storage.
+     * Update leave type (Admin only)
      */
     public function update(Request $request, string $id)
     {
-        //
+        $leaveType = LeaveType::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'sometimes|string|max:255|unique:leave_types,name,' .$id,
+            'code' => 'sometimes|string|max:50|unique:leave_types,code,' .$id,
+            'description' => 'nullable|string|max:1000',
+            'max_days_per_year' => 'sometimes|integer|min:0',
+            'is_active' => 'boolean',
+        ]);
+
+        // Returns HTTP 404 Not Found if the leave types does not exist.
+        if (!$leaveType) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Leave type not found.'
+            ], 404);
+        }
+
+        // Validation errors return HTTP 422 Unprocessable Entity.
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $leaveType->update($request->all());
+
+        // Return HTTP 200 OK
+        return response()->json([
+            'success' => true,
+            'message' => 'Leave type updated successfully',
+            'data' => $leaveType
+        ], 200);
+
     }
 
     /**
