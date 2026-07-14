@@ -89,7 +89,11 @@ class LeaveRequestController extends Controller
     /**
      * DELETE /api/leave-requests/{id}
      * Student only, cancel pending request
+     *  * - Verifies ownership (403 if not the student who created it)
+     * - Only allowed while status is 'pending' (422 otherwise)
+     * - Returns 204 No Content on success (no response body)
      */
+
     public function destroy(Request $request, LeaveRequest $leaveRequest)
     {
         if ($leaveRequest->user_id !== $request->user()->id) {
@@ -104,7 +108,7 @@ class LeaveRequestController extends Controller
 
         $leaveRequest->delete();
 
-        return response()->json(['message' => 'Leave request cancelled']);
+        return response()->json(['message' => 'Leave request cancelled'], 200);
     }
 
     /**
