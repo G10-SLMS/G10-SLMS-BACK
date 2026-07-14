@@ -19,7 +19,7 @@ class LeaveRequestController extends Controller
      */
     public function index(Request $request)
     {
-        $query = LeaveRequest::with(['leaveType', 'user']);
+        $query = LeaveRequest::with(['leaveType', 'user', 'approver']);
 
         if ($request->user()->role === 'student') {
             $query->where('user_id', $request->user()->id);
@@ -59,7 +59,7 @@ class LeaveRequestController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        return response()->json($leaveRequest->load(['leaveType', 'user', 'approver']));
+        return response()->json($leaveRequest->load(['leaveType', 'user', 'approver', 'comments', 'attachments']));
     }
 
     /**
