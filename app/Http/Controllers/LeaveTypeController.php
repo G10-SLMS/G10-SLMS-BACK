@@ -97,6 +97,7 @@ class LeaveTypeController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
+                'message' => 'Leave type updated successfully',
                 'errors' => $validator->errors()
             ], 422);
         }
