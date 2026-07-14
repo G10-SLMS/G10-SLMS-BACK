@@ -77,13 +77,13 @@ class LeaveRequestController extends Controller
     {
         if ($leaveRequest->status !== 'pending') {
             return response()->json([
-                'message' => 'Cannot edit a request that has already been reviewed.'
+                'message' => "Cannot edit a request that has already been reviewed ({$leaveRequest->status})."
             ], 422);
         }
 
         $leaveRequest->update($request->validated());
 
-        return response()->json($leaveRequest->load('leaveType'));
+        return response()->json($leaveRequest->load('leaveType', 'user', 'approver'));
     }
 
     /**
