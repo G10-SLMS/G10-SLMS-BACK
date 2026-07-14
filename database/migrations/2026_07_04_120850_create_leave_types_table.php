@@ -10,12 +10,12 @@ return new class extends Migration
     {
         Schema::create('leave_types', function (Blueprint $table) {
             $table->id();
-            $table->string('name');                       // e.g. "Sick Leave", "Annual Leave"
-            $table->string('code')->unique();              // e.g. "sick", "annual"
+            $table->string('name');                     
+            $table->string('code')->unique();              
             $table->text('description')->nullable();
-            $table->unsignedSmallInteger('max_days_per_year')->default(0);
-            $table->boolean('requires_attachment')->default(false); // e.g. sick note for sick leave
-            $table->boolean('is_active')->default(true);
+            $table->unsignedSmallInteger('max_days_per_year');
+            $table->boolean('requires_attachment')->default(false);
+            $table->boolean('is_active')->default(true); 
             $table->timestamps();
         });
     }
