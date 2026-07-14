@@ -12,6 +12,7 @@ class LeaveTypeController extends Controller
 {
     /**
      * Display a listing of the resource.
+     * Get all leave type
      */
     public function index()
     {
@@ -119,9 +120,32 @@ class LeaveTypeController extends Controller
 
     /**
      * Remove the specified resource from storage.
+     * Delete leave type (Admin only)
      */
     public function destroy(string $id)
     {
-        //
+        $leaveType = LeaveType::find($id);
+
+        // Return HTTP 404 Not Found
+        if (!$leaveType) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Leave type not found'
+            ], 404);
+        }
+        // Check if Leave type is being used
+        if ($leaveType->leaveRequests()->count() > 0) {
+            return response()->json([
+                'succes' => false,
+                'message' => 'Cannot delete leave type that is being used in leave requests.'
+            ], 409);
+        }
+
+        $leaveType->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Leave type deleted successfully'
+        ], 200);
     }
 }
