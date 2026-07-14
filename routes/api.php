@@ -50,6 +50,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/reject/{leaveRequest}', [LeaveRequestController::class, 'reject']);
     });
 
+    // Route::middleware('role:trainer,admin')->group(function () {
+    //     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
+    // });
+
     // Shared: Student/Trainer/Admin
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show']);
