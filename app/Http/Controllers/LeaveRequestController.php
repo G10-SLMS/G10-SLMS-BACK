@@ -55,9 +55,16 @@ class LeaveRequestController extends Controller
      */
     public function show(Request $request, LeaveRequest $leaveRequest)
     {
-        if ($request->user()->role === 'student' && $leaveRequest->user_id !== $request->user()->id) {
+        $user = $request->user();
+
+        // if ($request->user()->role === 'student' && $leaveRequest->user_id !== $request->user()->id) {
+        //     return response()->json(['message' => 'Unauthorized'], 403);
+        // }
+
+        if ($user->role === 'student' && $leaveRequest->user_id !== $user->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+
 
         return response()->json($leaveRequest->load(['leaveType', 'user', 'approver', 'comments', 'attachments']));
     }
@@ -97,7 +104,7 @@ class LeaveRequestController extends Controller
 
         $leaveRequest->delete();
 
-        return response()->json(['message' => 'Leave request cancelled'], 200);
+        return response()->json(['message' => 'Leave request cancelled']);
     }
 
     /**
