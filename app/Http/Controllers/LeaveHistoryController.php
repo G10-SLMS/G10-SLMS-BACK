@@ -13,7 +13,7 @@ class LeaveHistoryController extends Controller
      */
     public function index(Request $request)
     {
-        $leaveHistory = LeaveRequest::with(['leaveType', 'approver'])
+        $leaveHistory = LeaveRequest::with(['leaveType', 'reviewer'])
             ->where('user_id', $request->user()->id)
             ->latest()
             ->paginate(10);
