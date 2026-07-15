@@ -23,7 +23,7 @@ class AuthController extends Controller
 
         $user = User::create($data);
 
-        $defaultAvatar = Avatar::where('is_default', true)->inRandomOrder()->first();
+        $defaultAvatar = Avatar::fallbackFor($data['gender'] ?? null);
 
         if ($defaultAvatar) {
             $user->avatar_id = $defaultAvatar->id;
@@ -127,14 +127,20 @@ class AuthController extends Controller
         ], 200);
     }
 
-    public function getDefaultAvatars()
+    public function getDefaultAvatars(Request $request)
     {
-        $defaultAvatars = Avatar::where('is_default', true)
+        $gender = $request->query('gender');
+
+        $defaultAvatars = Avatar::selectable()
+            ->forGender(in_array($gender, ['male', 'female'], true) ? $gender : null)
+            ->orderBy('gender')
+            ->orderBy('filename')
             ->get()
             ->map(fn ($avatar) => [
                 'id' => $avatar->id,
                 'filename' => $avatar->filename,
                 'url' => asset($avatar->path),
+                'gender' => $avatar->gender,
             ]);
 
         return response()->json([
