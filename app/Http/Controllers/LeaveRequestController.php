@@ -29,9 +29,19 @@ class LeaveRequestController extends Controller
             $query->where('status', $request->status);
         }
 
-        return response()->json(
-            $query->latest()->paginate(10)
-        );
+        $leaveRequests = $query->latest()->paginate(10);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Leave requests retrieved successfully.',
+            'data' => $leaveRequests->items(),
+            'meta' => [
+                'current_page' => $leaveRequests->currentPage(),
+                'last_page' => $leaveRequests->lastPage(),
+                'per_page' => $leaveRequests->perPage(),
+                'total' => $leaveRequests->total(),
+            ],
+        ]);
     }
 
     /**
@@ -123,9 +133,10 @@ class LeaveRequestController extends Controller
 
         $leaveRequest->update([
             'status' => 'approved',
-            'approved_by' => $request->user()->id,
-            // 'reviewed_by' => $request->user()->id,
-            // 'reviewed_at' => now(),
+            // 'approved_by' => $request->user()->id,
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+            'review_note' => $request->input('review_note'),
         ]);
 
         return response()->json($leaveRequest->load('leaveType'));
