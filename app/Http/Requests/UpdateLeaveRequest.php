@@ -19,10 +19,10 @@ class UpdateLeaveRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'leave_type_id' => ['sometimes', 'exists:leave_types,id'],
-            'start_date' => ['sometimes', 'date'],
-            'end_date' => ['sometimes', 'date', 'after_or_equal:start_date'],
-            'reason' => ['sometimes', 'string', 'min:5', 'max:500'],
+            'leave_type_id' => ['sometimes', 'required', 'integer', 'exists:leave_types,id'],
+            'start_date' => ['sometimes', 'required', 'date', 'after_or_equal:today'],
+            'end_date' => ['sometimes', 'required', 'date', 'after_or_equal:start_date'],
+            'reason' => ['sometimes', 'required', 'string', 'max:500'],
         ];
     }
 
@@ -31,12 +31,17 @@ class UpdateLeaveRequest extends FormRequest
         return [
             'leave_type_id.required' => 'Please select a leave type.',
             'leave_type_id.exists' => 'Selected leave type does not exist.',
-            'start_date.required' => 'Start date is required.',
-            'start_date.after_or_equal' => 'Start date cannot be in the past.',
-            'end_date.required' => 'End date is required.',
-            'end_date.after_or_equal' => 'End date cannot be before start date.',
+
             'reason.required' => 'Please provide a reason for your leave request.',
-            'reason.min' => 'Reason must be at least 5 characters.',
+            'reason.max' => 'Reason must not exceed 500 characters.',
+
+            'start_date.required' => 'Start date is required.',
+            'start_date.date' => 'Start date must be a valid date.',
+            'start_date.after_or_equal' => 'Start date must be today or a future date.',
+
+            'end_date.required' => 'End date is required.',
+            'end_date.date' => 'End date must be a valid date.',
+            'end_date.after_or_equal' => 'End date must be on or after the start date.',
         ];
     }
 }
