@@ -30,4 +30,25 @@ class LeaveHistoryController extends Controller
             ],
         ], 200);
     }
+
+    /**
+     * GET /api/leave-history/{id}
+     * Student only - retrieve details of a specific leave request
+     *
+     * @param int $id
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function show($id, Request $request)
+    {
+        $leaveRequest = LeaveRequest::with(['leaveType', 'reviewer', 'comments', 'attachments'])
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Leave request details retrieved successfully.',
+            'data' => $leaveRequest,
+        ], 200);
+    }
 }

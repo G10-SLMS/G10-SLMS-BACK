@@ -63,5 +63,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Student Leave History
     Route::middleware('role:student')->group(function () {
         Route::get('/leave-history', [LeaveHistoryController::class, 'index']);
+        Route::get('/leave-history/{id}', [LeaveHistoryController::class, 'show']);
     });
 });
