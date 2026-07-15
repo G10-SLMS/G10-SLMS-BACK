@@ -25,9 +25,19 @@ class StoreLeaveRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'leave_type_id.required' => 'Please select a leave type.',
             'leave_type_id.exists' => 'Selected leave type does not exist.',
-            'end_date.after_or_equal' => 'End date cannot be before start date.',
-            'start_date.after_or_equal' => 'Start date cannot be in the past.',
+
+            'reason.required' => 'Please provide a reason for your leave request.',
+            'reason.max' => 'Reason must not exceed 500 characters.',
+
+            'start_date.required' => 'Start date is required.',
+            'start_date.date' => 'Start date must be a valid date.',
+            'start_date.after_or_equal' => 'Start date must be today or a future date.',
+
+            'end_date.required' => 'End date is required.',
+            'end_date.date' => 'End date must be a valid date.',
+            'end_date.after_or_equal' => 'End date must be on or after the start date.',
         ];
     }
 }
