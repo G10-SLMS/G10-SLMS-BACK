@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\LeaveHistoryController;
 use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\LeaveRequestController;
 use Illuminate\Http\Request;
@@ -57,4 +58,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Shared: Student/Trainer/Admin
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show']);
+
+
+    // Student Leave History
+    Route::middleware('role:student')->group(function () {
+        Route::get('/leave-history', [LeaveHistoryController::class, 'index']);
+    });
 });
