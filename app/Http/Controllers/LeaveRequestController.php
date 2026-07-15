@@ -152,14 +152,25 @@ class LeaveRequestController extends Controller
             return response()->json(['message' => 'This request has already been reviewed.'], 422);
         }
 
-        $leaveRequest->update([
-            'status' => 'rejected',
-            'approved_by' => $request->user()->id,
-
-            // 'reviewed_by' => $request->user()->id,
-            // 'reviewed_at' => now(),
+        $validated = $request->validate([
+            'review_note' => ['required', 'string', 'min:5', 'max:500'],
+        ], [
+            'review_note.required' => 'Please provide a reason for rejecting this request.',
         ]);
 
-        return response()->json($leaveRequest->load('leaveType'));
+        $leaveRequest->update([
+            'status' => 'rejected',
+            // 'approved_by' => $request->user()->id,
+
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+            'review_note' => $request->input('review_note'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Leave request rejected successfully.',
+            'data' => $leaveRequest->load(['leaveType', 'user', 'reviewer']),
+        ]);
     }
 }

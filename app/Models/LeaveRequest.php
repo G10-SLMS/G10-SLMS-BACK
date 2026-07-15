@@ -19,12 +19,15 @@ class LeaveRequest extends Model
         'end_date',
         'reason',
         'status',
-        'approved_by',
+        'reviewed_by',
+        'reviewed_at',
+        'review_note',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'reviewed_at' => 'datetime',
     ];
 
     /**
@@ -46,9 +49,9 @@ class LeaveRequest extends Model
     /**
      * The trainer who approved/rejected this request.
      */
-    public function approver(): BelongsTo
+    public function reviewer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'approved_by');
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 
     /**
