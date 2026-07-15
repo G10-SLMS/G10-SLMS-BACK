@@ -13,11 +13,17 @@ class RoleMiddleware
         $user = $request->user();
 
         if (! $user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
         }
 
         if (! in_array($user->role, $roles)) {
-            return response()->json(['message' => 'Forbidden. Insufficient role.'], 403);
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to perform this action.',
+            ], 403);
         }
 
         return $next($request);
