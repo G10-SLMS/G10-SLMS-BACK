@@ -22,7 +22,6 @@ return new class extends Migration
             $table->softDeletes();
             $table->foreignId('parent_id')
                 ->nullable()
-                ->after('user_id')
                 ->constrained('comments')
                 ->nullOnDelete();
 
