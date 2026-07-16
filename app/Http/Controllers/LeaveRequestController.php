@@ -19,7 +19,7 @@ class LeaveRequestController extends Controller
      */
     public function index(Request $request)
     {
-        $query = LeaveRequest::with(['leaveType', 'user', 'reviewer']);
+        $query = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer']);
 
         if ($request->user()->role === 'student') {
             $query->where('user_id', $request->user()->id);
@@ -81,7 +81,7 @@ class LeaveRequestController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Leave request retrieved successfully.',
-            'data' => $leaveRequest->load(['leaveType', 'user', 'reviewer', 'comments', 'attachments']),
+            'data' => $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer', 'comments', 'attachments']),
         ]);
     }
 
@@ -103,7 +103,7 @@ class LeaveRequestController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Leave request updated successfully.',
-            'data' => $leaveRequest->load(['leaveType', 'user', 'reviewer']),
+            'data' => $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer']),
         ]);
     }
 
@@ -166,7 +166,7 @@ class LeaveRequestController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Leave request approved successfully.',
-            'data' => $leaveRequest->load(['leaveType', 'user', 'reviewer']),
+            'data' => $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer']),
         ]);
     }
 
@@ -201,7 +201,7 @@ class LeaveRequestController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Leave request rejected successfully.',
-            'data' => $leaveRequest->load(['leaveType', 'user', 'reviewer']),
+            'data' => $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer']),
         ]);
     }
 }
