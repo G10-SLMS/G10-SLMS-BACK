@@ -25,7 +25,7 @@ return new class extends Migration
             $table->string('province')->nullable();
 
             // Foreign Keys
-            $table->foreignId('avatar_id')->nullable()->constrained('avatars')->nullOnDelete();
+            $table->foreignId('avatar_id')->nullable();
             $table->foreignId('trainer_id')->nullable()->constrained('users')->nullOnDelete();
 
             $table->boolean('is_active')->default(true);
