@@ -1,11 +1,11 @@
 <?php
 
 use App\Http\Controllers\AuthController;
-<<<<<<< HEAD
+
 use App\Http\Controllers\LeaveHistoryController;
-=======
+
 use App\Http\Controllers\LeaveTypeController;
->>>>>>> a10541ddd2ad76c5db80d32d375389516de82657
+
 use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\LeaveRequestController;
 use Illuminate\Http\Request;
@@ -44,7 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
-<<<<<<< HEAD
+
 
     // Student only
     Route::middleware('role:student')->group(function () {
@@ -59,9 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/reject/{leaveRequest}', [LeaveRequestController::class, 'reject']);
     });
 
-    // Route::middleware('role:trainer,admin')->group(function () {
-    //     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
-    // });
+
 
     // Shared: Student/Trainer/Admin
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
@@ -73,7 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/leave-history', [LeaveHistoryController::class, 'index']);
         Route::get('/leave-history/{id}', [LeaveHistoryController::class, 'show']);
     });
-=======
+
 });
 
 // Leave Type API
@@ -84,5 +82,5 @@ Route::middleware(['auth:sanctum', 'role:admin,student'])->group(function () {
     Route::post('/leave-types', [LeaveTypeController::class, 'store']);
     Route::put('/leave-types/{leaveType}', [LeaveTypeController::class, 'update']);
     Route::delete('/leave-types/{leaveType}', [LeaveTypeController::class, 'destroy']);
->>>>>>> a10541ddd2ad76c5db80d32d375389516de82657
+
 });

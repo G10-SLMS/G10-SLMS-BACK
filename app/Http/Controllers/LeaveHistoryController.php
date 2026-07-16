@@ -96,6 +96,13 @@ class LeaveHistoryController extends Controller
                 'last_page' => $leaveHistory->lastPage(),
                 'per_page' => $leaveHistory->perPage(),
                 'total' => $leaveHistory->total(),
+                'from' => $leaveHistory->firstItem(),
+                'to' => $leaveHistory->lastItem(),
+                'path' => $leaveHistory->path(),
+                'first_page_url' => $leaveHistory->url(1),
+                'last_page_url' => $leaveHistory->url($leaveHistory->lastPage()),
+                'next_page_url' => $leaveHistory->nextPageUrl(),
+                'prev_page_url' => $leaveHistory->previousPageUrl(),
             ],
         ], 200);
     }
