@@ -15,17 +15,16 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'gender',
-        'id_card',
-        'generation',
-        'class',
+        'student_id', 
+        'generation', 
+        'class_name', 
         'phone',
-        'province',
-        'email',
-        'password',
-        'role',
-        'avatar_id',
+        'province', 
+        'email', 
+        'password', 
+        'role', 
+        'avatar_id', 
         'trainer_id',
-        'is_active',
     ];
 
     protected $hidden = [
