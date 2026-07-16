@@ -33,7 +33,7 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'user' => $user,
+            'user' => $user->load('avatar'),
             'token' => $token,
         ], 201);
     }
@@ -54,7 +54,7 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'user' => $user,
+            'user' => $user->load('avatar'),
             'token' => $token,
         ]);
     }
@@ -105,7 +105,7 @@ class AuthController extends Controller
 
     public function profile(Request $request)
     {
-        return response()->json($request->user());
+        return response()->json($request->user()->load('avatar'));
     }
 
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
@@ -123,7 +123,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Profile updated successfully.',
-            'user' => $user->fresh(),
+            'user' => $user->fresh()->load('avatar'),
         ], 200);
     }
 

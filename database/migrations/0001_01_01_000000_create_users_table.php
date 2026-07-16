@@ -19,13 +19,13 @@ return new class extends Migration
             $table->enum('gender', ['male', 'female'])->nullable();
 
             // Student-only fields
-            $table->integer('student_id')->nullable();
-            $table->string('class_name')->nullable();
+            $table->string('id_card')->nullable();
+            $table->string('class')->nullable();
             $table->string('generation')->nullable();
             $table->string('province')->nullable();
 
             // Foreign Keys
-            $table->foreignId('avatar_id')->nullable()->constrained('avatars')->nullOnDelete();
+            $table->foreignId('avatar_id')->nullable();
             $table->foreignId('trainer_id')->nullable()->constrained('users')->nullOnDelete();
 
             $table->boolean('is_active')->default(true);
