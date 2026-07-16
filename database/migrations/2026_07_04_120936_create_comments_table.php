@@ -18,6 +18,13 @@ return new class extends Migration
             $table->foreignId('user_id')                    // who wrote the comment
                 ->constrained('users')
                 ->cascadeOnDelete();
+            $table->timestamp('edited_at')->nullable();
+            $table->softDeletes();
+            $table->foreignId('parent_id')
+                ->nullable()
+                ->after('user_id')
+                ->constrained('comments')
+                ->nullOnDelete();
 
             $table->text('body');
             $table->timestamps();
