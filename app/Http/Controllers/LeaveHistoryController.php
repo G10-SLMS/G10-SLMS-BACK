@@ -8,16 +8,36 @@ use Illuminate\Http\Request;
 class LeaveHistoryController extends Controller
 {
     /**
-     * GET /api/leave-history
-     * Student only - retrieve their own leave history
+     * GET /api/leave-history?search=
+     * Student only - retrieve their own leave history with optional search
+     *
+     * Searchable by:
+     * - Leave request ID (exact or partial match on ID)
+     * - Leave type name (partial match on leave type name)
      */
     public function index(Request $request)
     {
-        $leaveHistory = LeaveRequest::with(['leaveType', 'reviewer'])
-            ->where('user_id', $request->user()->id)
-            ->latest()
-            ->paginate(10);
-        
+        $search = $request->query('search');
+
+        $query = LeaveRequest::with(['leaveType', 'reviewer'])
+            ->where('user_id', $request->user()->id);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                // Search by leave request ID (if search is numeric)
+                if (is_numeric($search)) {
+                    $q->orWhere('id', $search);
+                }
+
+                // Search by leave type name via relationship
+                $q->orWhereHas('leaveType', function ($leaveTypeQuery) use ($search) {
+                    $leaveTypeQuery->where('name', 'LIKE', '%' . $search . '%');
+                });
+            });
+        }
+
+        $leaveHistory = $query->latest()->paginate(10);
+
         return response()->json([
             'success' => true,
             'message' => 'Leave history retrieved successfully.',
