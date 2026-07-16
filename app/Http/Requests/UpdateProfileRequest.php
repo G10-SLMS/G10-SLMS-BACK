@@ -27,6 +27,7 @@ class UpdateProfileRequest extends FormRequest
             'phone' => ['sometimes', 'required', 'string', 'max:20'],
 
             // Student-only
+            'id_card' => ['sometimes', Rule::requiredIf($role === 'student'), 'nullable', 'string', 'max:50'],
             'class' => ['sometimes', Rule::requiredIf($role === 'student'), 'nullable', 'string', 'max:100'],
             'generation' => ['sometimes', Rule::requiredIf($role === 'student'), 'nullable', 'string', 'max:50'],
             'province' => ['sometimes', Rule::requiredIf($role === 'student'), 'nullable', 'string', 'max:100'],
