@@ -4,15 +4,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Avatar extends Model
 {
 
+    use SoftDeletes;
+    
     protected $fillable = [
         'filename',
         'path',
         'is_default',
-        'usage_count',
+        'description',
+        'is_active',
         'gender',
     ];
 
