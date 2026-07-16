@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('notifications', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('user_id')                 
+            $table->foreignId('user_id')
                 ->constrained('users')
                 ->cascadeOnDelete();
 
@@ -24,6 +24,17 @@ return new class extends Migration
             $table->string('title');
             $table->text('message');
             $table->boolean('is_read')->default(false);       // 0 = unread, 1 = read
+            $table->timestamp('read_at')->nullable();
+            $table->enum('priority', [
+                'low',
+                'normal',
+                'high'
+            ])->default('normal');
+            $table->foreignId('created_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+            $table->softDeletes();
 
             $table->timestamps();
 
