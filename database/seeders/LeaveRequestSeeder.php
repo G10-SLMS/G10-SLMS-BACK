@@ -48,9 +48,9 @@ class LeaveRequestSeeder extends Seeder
                     'end_date' => $start->copy()->addDays(1)->toDateString(),
                     'reason' => "Sample leave request #{$index} for {$student->name}.",
                     'status' => $status,
-                    'approved_by' => $status === 'pending' ? null : $reviewer?->id,
-                    // 'review_note' => $status === 'rejected' ? 'Insufficient notice given.' : null,
-                    // 'reviewed_at' => $status === 'pending' ? null : now(),
+                    'reviewed_by' => $status === 'pending' ? null : $reviewer?->id,
+                    'review_note' => $status === 'rejected' ? 'Insufficient notice given.' : null,
+                    'reviewed_at' => $status === 'pending' ? null : now(),
                 ]
             );
         }
