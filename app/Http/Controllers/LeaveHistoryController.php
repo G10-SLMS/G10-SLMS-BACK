@@ -8,21 +8,25 @@ use Illuminate\Http\Request;
 class LeaveHistoryController extends Controller
 {
     /**
-     * GET /api/leave-history?search=
-     * Student only - retrieve their own leave history with optional search
+     * GET /api/leave-history?search=&leave_type=&status=&start_date=&end_date=
+     * Student only - retrieve their own leave history with optional search and filters
      *
      * Searchable by:
      * - Leave request ID (exact or partial match on ID)
      * - Leave type name (partial match on leave type name)
+     *
+     * Filterable by:
+     * - leave_type: Filter by leave type ID
+     * - status: Filter by status (pending, approved, rejected, cancelled)
+     * - start_date & end_date: Filter by date range (inclusive)
      */
     public function index(Request $request)
     {
-        $search = $request->query('search');
-
         $query = LeaveRequest::with(['leaveType', 'reviewer'])
             ->where('user_id', $request->user()->id);
 
-        if ($search) {
+        // Search filter
+        if ($search = $request->query('search')) {
             $query->where(function ($q) use ($search) {
                 // Search by leave request ID (if search is numeric)
                 if (is_numeric($search)) {
@@ -34,6 +38,25 @@ class LeaveHistoryController extends Controller
                     $leaveTypeQuery->where('name', 'LIKE', '%' . $search . '%');
                 });
             });
+        }
+
+        // Filter by leave type
+        if ($leaveType = $request->query('leave_type')) {
+            $query->where('leave_type_id', $leaveType);
+        }
+
+        // Filter by status
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
+        }
+
+        // Filter by date range (inclusive)
+        if ($startDate = $request->query('start_date')) {
+            $query->whereDate('start_date', '>=', $startDate);
+        }
+
+        if ($endDate = $request->query('end_date')) {
+            $query->whereDate('end_date', '<=', $endDate);
         }
 
         $leaveHistory = $query->latest()->paginate(10);
