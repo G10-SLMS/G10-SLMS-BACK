@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreLeaveTypeRequest;
+use App\Http\Requests\UpdateLeaveTypeRequest;
 use App\Models\LeaveType;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Request;
-// use Illuminate\Support\Facades\Validator as FacadesValidator;
 
 class LeaveTypeController extends Controller
 {
@@ -28,25 +28,9 @@ class LeaveTypeController extends Controller
      * Store a newly created resource in storage.
      * Create leave types only Admin
      */
-    public function store(Request $request)
+    public function store(StoreLeaveTypeRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:leave_types,name',
-            'code' => 'required|string|max:50|unique:leave_types,code',
-            'description' => 'nullable|string|max:1000',
-            'max_days_per_year' => 'required|integer|min:0',
-            'requires_attachment' => 'boolean',
-            'is_active' => 'boolean',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $leaveType = LeaveType::create($request->all());
+        $leaveType = LeaveType::create($request->validated());
 
         return response()->json([
             'success' => true,
@@ -82,25 +66,8 @@ class LeaveTypeController extends Controller
      * Update the specified resource in storage.
      * Update leave type (Admin only)
      */
-    public function update(Request $request, string $id)
+    public function update(UpdateLeaveTypeRequest $request, string $id)
     {
-
-        $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|string|max:255|unique:leave_types,name,' . $id,
-            'code' => 'sometimes|string|max:50|unique:leave_types,code,' . $id,
-            'description' => 'nullable|string|max:1000',
-            'max_days_per_year' => 'sometimes|integer|min:0',
-            'is_active' => 'boolean',
-        ]);
-
-        // Validation errors return HTTP 422 Unprocessable Entity.
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
         // Returns HTTP 404 Not Found if the leave types does not exist.
         $leaveType = LeaveType::find($id);
         if (!$leaveType) {
@@ -110,7 +77,7 @@ class LeaveTypeController extends Controller
             ], 404);
         }
 
-        $leaveType->update($request->all());
+        $leaveType->update($request->validated());
 
         // Return HTTP 200 OK
         return response()->json([
