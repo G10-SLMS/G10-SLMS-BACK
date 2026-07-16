@@ -17,6 +17,16 @@ return new class extends Migration
             $table->string('avatar')->nullable();
             $table->enum('role', ['admin', 'trainer', 'student'])->default('student');
             $table->foreignId('trainer_id')->nullable()->constrained('users')->nullOnDelete();
+
+            // Applies to all roles
+            $table->string('phone')->nullable();
+
+            // Student-only fields
+            $table->enum('gender', ['male', 'female'])->nullable();
+            $table->string('class')->nullable();
+            $table->string('generation')->nullable();
+            $table->string('province')->nullable();
+
             $table->rememberToken();
             $table->timestamps();
         });
