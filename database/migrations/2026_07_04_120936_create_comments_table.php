@@ -15,7 +15,7 @@ return new class extends Migration
                 ->constrained('leave_requests')
                 ->cascadeOnDelete();
 
-            $table->foreignId('user_id')                    // who wrote the comment
+            $table->foreignId('user_id') 
                 ->constrained('users')
                 ->cascadeOnDelete();
             $table->timestamp('edited_at')->nullable();
@@ -24,6 +24,14 @@ return new class extends Migration
                 ->nullable()
                 ->constrained('comments')
                 ->nullOnDelete();
+
+            $table->foreignId('parent_id')
+                ->nullable()
+                ->constrained('comments')
+                ->nullOnDelete();
+
+            $table->timestamp('edited_at')->nullable();
+            $table->softDeletes();
 
             $table->text('body');
             $table->timestamps();

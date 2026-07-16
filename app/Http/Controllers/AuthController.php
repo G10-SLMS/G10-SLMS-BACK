@@ -23,7 +23,7 @@ class AuthController extends Controller
 
         $user = User::create($data);
 
-        $defaultAvatar = Avatar::where('is_default', true)->inRandomOrder()->first();
+        $defaultAvatar = Avatar::fallbackFor($data['gender'] ?? null);
 
         if ($defaultAvatar) {
             $user->avatar_id = $defaultAvatar->id;
@@ -33,7 +33,7 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'user' => $user,
+            'user' => $user->load('avatar'),
             'token' => $token,
         ], 201);
     }
@@ -54,7 +54,7 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'user' => $user,
+            'user' => $user->load('avatar'),
             'token' => $token,
         ]);
     }
@@ -105,7 +105,7 @@ class AuthController extends Controller
 
     public function profile(Request $request)
     {
-        return response()->json($request->user());
+        return response()->json($request->user()->load('avatar'));
     }
 
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
@@ -123,18 +123,24 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Profile updated successfully.',
-            'user' => $user->fresh(),
+            'user' => $user->fresh()->load('avatar'),
         ], 200);
     }
 
-    public function getDefaultAvatars()
+    public function getDefaultAvatars(Request $request)
     {
-        $defaultAvatars = Avatar::where('is_default', true)
+        $gender = $request->query('gender');
+
+        $defaultAvatars = Avatar::selectable()
+            ->forGender(in_array($gender, ['male', 'female'], true) ? $gender : null)
+            ->orderBy('gender')
+            ->orderBy('filename')
             ->get()
             ->map(fn ($avatar) => [
                 'id' => $avatar->id,
                 'filename' => $avatar->filename,
                 'url' => asset($avatar->path),
+                'gender' => $avatar->gender,
             ]);
 
         return response()->json([

@@ -21,6 +21,7 @@ class LeaveRequest extends Model
         'reviewed_by',
         'review_note',
         'reviewed_at',
+        'cancelled_at',
     ];
 
     protected $casts = [
