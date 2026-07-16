@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-
 class LeaveRequest extends Model
 {
     use HasFactory;
@@ -20,8 +19,9 @@ class LeaveRequest extends Model
         'reason',
         'status',
         'reviewed_by',
-        'reviewed_at',
         'review_note',
+        'reviewed_at',
+        'cancelled_at',
     ];
 
     protected $casts = [
@@ -30,41 +30,26 @@ class LeaveRequest extends Model
         'reviewed_at' => 'datetime',
     ];
 
-    /**
-     * The student who submitted the leave request.
-     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * The type of leave (Sick, Annual, etc.).
-     */
     public function leaveType(): BelongsTo
     {
         return $this->belongsTo(LeaveType::class);
     }
 
-    /**
-     * The trainer who approved/rejected this request.
-     */
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
-    /**
-     * Comments left on this leave request.
-     */
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class);
     }
 
-    /**
-     * Files attached to this leave request.
-     */
     public function attachments(): HasMany
     {
         return $this->hasMany(Attachment::class);

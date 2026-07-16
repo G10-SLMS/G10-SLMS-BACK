@@ -14,18 +14,21 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->string('avatar')->nullable();
             $table->enum('role', ['admin', 'trainer', 'student'])->default('student');
-            $table->foreignId('trainer_id')->nullable()->constrained('users')->nullOnDelete();
-
-            // Applies to all roles
             $table->string('phone')->nullable();
+            $table->enum('gender', ['male', 'female'])->nullable();
 
             // Student-only fields
-            $table->enum('gender', ['male', 'female'])->nullable();
-            $table->string('class')->nullable();
+            $table->integer('student_id')->nullable();
+            $table->string('class_name')->nullable();
             $table->string('generation')->nullable();
             $table->string('province')->nullable();
+
+            // Foreign Keys
+            $table->foreignId('avatar_id')->nullable()->constrained('avatars')->nullOnDelete();
+            $table->foreignId('trainer_id')->nullable()->constrained('users')->nullOnDelete();
+
+            $table->boolean('is_active')->default(true);
 
             $table->rememberToken();
             $table->timestamps();

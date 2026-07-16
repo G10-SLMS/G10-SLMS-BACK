@@ -16,7 +16,10 @@ return new class extends Migration
             $table->string('filename');
             $table->string('path');
             $table->boolean('is_default')->default(false);
-            $table->integer('usage_count')->default(0);
+            $table->enum('gender', ['male', 'female'])->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->string('description')->nullable();
+            $table->softDeletes();
             $table->timestamps();
         });
     }

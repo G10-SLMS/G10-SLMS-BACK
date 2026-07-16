@@ -145,7 +145,7 @@ class AuthController extends Controller
 
     public function getAllUsers()
     {
-        $users = User::all(['id', 'name', 'email', 'role', 'class', 'generation', 'province', 'gender', 'id_card', 'phone', 'created_at', 'updated_at']);
+        $users = User::all(['id', 'name', 'email', 'role', 'class_name', 'generation', 'province', 'gender', 'student_id', 'phone', 'created_at', 'updated_at']);
 
         return response()->json([
             'users' => $users,
