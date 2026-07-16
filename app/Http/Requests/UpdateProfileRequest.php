@@ -12,11 +12,17 @@ class UpdateProfileRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('id_card') && $this->id_card !== null) {
+            $this->merge(['id_card' => (string) $this->id_card]);
+        }
+    }
+
     public function rules(): array
     {
         $userId = $this->user()->id;
-        $role = $this->user()->role; // role isn't changed here — use UserController::updateRole for that
-
+        $role = $this->user()->role;
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'email' => ['sometimes', 'required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
