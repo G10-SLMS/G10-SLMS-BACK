@@ -21,12 +21,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'cors' => \App\Http\Middleware\CorsMiddleware::class,
         ]);
     })
-<<<<<<< HEAD
+
 
     ->withExceptions(function (Exceptions $exceptions): void {
-=======
- ->withExceptions(function (Exceptions $exceptions): void {
->>>>>>> a10541ddd2ad76c5db80d32d375389516de82657
+
         //
         $exceptions->render(function (AuthenticationException $e, $request) {
             if ($request->is('api/*')) {
@@ -34,3 +32,4 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
     })->create();
+    
