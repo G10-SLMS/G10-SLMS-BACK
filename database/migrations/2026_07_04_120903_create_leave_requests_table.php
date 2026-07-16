@@ -33,6 +33,7 @@ return new class extends Migration
 
             $table->text('review_note')->nullable();
             $table->timestamp('reviewed_at')->nullable();
+            $table->timestamp('cancelled_at')->nullable();
 
             $table->timestamps();
 

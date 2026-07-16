@@ -14,6 +14,7 @@ return new class extends Migration
             $table->string('code')->unique();              
             $table->text('description')->nullable();
             $table->unsignedSmallInteger('max_days_per_year');
+            $table->softDeletes();
             $table->boolean('requires_attachment')->default(false);
             $table->boolean('is_active')->default(true); 
             $table->timestamps();
