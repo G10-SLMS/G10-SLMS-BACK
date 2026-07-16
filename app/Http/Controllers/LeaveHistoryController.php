@@ -59,7 +59,33 @@ class LeaveHistoryController extends Controller
             $query->whereDate('end_date', '<=', $endDate);
         }
 
-        $leaveHistory = $query->latest()->paginate(10);
+        // Sorting
+        $sortBy = $request->query('sort', 'latest'); // Default to latest (submission date)
+        
+        switch ($sortBy) {
+            case 'start_date_asc':
+                $query->orderBy('start_date', 'asc');
+                break;
+            case 'start_date_desc':
+                $query->orderBy('start_date', 'desc');
+                break;
+            case 'end_date_asc':
+                $query->orderBy('end_date', 'asc');
+                break;
+            case 'end_date_desc':
+                $query->orderBy('end_date', 'desc');
+                break;
+            case 'submission_date_asc':
+                $query->orderBy('created_at', 'asc');
+                break;
+            case 'submission_date_desc':
+            case 'latest':
+            default:
+                $query->orderBy('created_at', 'desc');
+                break;
+        }
+
+        $leaveHistory = $query->paginate(10);
 
         return response()->json([
             'success' => true,
@@ -70,6 +96,13 @@ class LeaveHistoryController extends Controller
                 'last_page' => $leaveHistory->lastPage(),
                 'per_page' => $leaveHistory->perPage(),
                 'total' => $leaveHistory->total(),
+                'from' => $leaveHistory->firstItem(),
+                'to' => $leaveHistory->lastItem(),
+                'path' => $leaveHistory->path(),
+                'first_page_url' => $leaveHistory->url(1),
+                'last_page_url' => $leaveHistory->url($leaveHistory->lastPage()),
+                'next_page_url' => $leaveHistory->nextPageUrl(),
+                'prev_page_url' => $leaveHistory->previousPageUrl(),
             ],
         ], 200);
     }
