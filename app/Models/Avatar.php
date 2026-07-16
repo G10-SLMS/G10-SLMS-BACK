@@ -5,27 +5,33 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Avatar extends Model
 {
 
-    use SoftDeletes;
-    
     protected $fillable = [
         'filename',
         'path',
         'is_default',
-        'description',
-        'is_active',
+        'usage_count',
         'gender',
     ];
+
+    protected $appends = ['url'];
 
     protected function casts(): array
     {
         return [
             'is_default' => 'boolean',
         ];
+    }
+
+    protected function url(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->path ? asset($this->path) : null,
+        );
     }
 
     public function user(): BelongsTo

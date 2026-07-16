@@ -22,7 +22,8 @@ class UpdateProfileRequest extends FormRequest
     public function rules(): array
     {
         $userId = $this->user()->id;
-        $role = $this->user()->role;
+        $role = $this->user()->role; // role isn't changed here — use UserController::updateRole for that
+
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'email' => ['sometimes', 'required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
