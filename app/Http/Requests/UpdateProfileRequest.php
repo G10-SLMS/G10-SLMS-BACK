@@ -12,6 +12,13 @@ class UpdateProfileRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('id_card') && $this->id_card !== null) {
+            $this->merge(['id_card' => (string) $this->id_card]);
+        }
+    }
+
     public function rules(): array
     {
         $userId = $this->user()->id;
