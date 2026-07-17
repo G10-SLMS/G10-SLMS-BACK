@@ -53,8 +53,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'destroy']);
     });
 
-    // Trainer only
-    Route::middleware('role:trainer')->group(function () {
+    // Trainer/Admin only
+    Route::middleware('role:trainer,admin')->group(function () {
         Route::post('/approve/{leaveRequest}', [LeaveRequestController::class, 'approve']);
         Route::post('/reject/{leaveRequest}', [LeaveRequestController::class, 'reject']);
     });
@@ -71,7 +71,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/leave-history', [LeaveHistoryController::class, 'index']);
         Route::get('/leave-history/{id}', [LeaveHistoryController::class, 'show']);
     });
-
 });
 
 // Leave Type API
@@ -82,5 +81,4 @@ Route::middleware(['auth:sanctum', 'role:admin,student'])->group(function () {
     Route::post('/leave-types', [LeaveTypeController::class, 'store']);
     Route::put('/leave-types/{leaveType}', [LeaveTypeController::class, 'update']);
     Route::delete('/leave-types/{leaveType}', [LeaveTypeController::class, 'destroy']);
-
 });
