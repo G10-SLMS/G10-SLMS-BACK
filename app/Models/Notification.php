@@ -37,8 +37,30 @@ class Notification extends Model
         return $this->belongsTo(LeaveRequest::class);
     }
 
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function scopeUnread($query)
+    {
+        return $query->where('is_read', false);
+    }
+
+    public function scopeForUser($query, int $userId)
+    {
+        return $query->where('user_id', $userId);
+    }
+
     public function markAsRead(): void
     {
-        $this->update(['is_read' => true]);
+        if ($this->is_read) {
+            return;
+        }
+
+        $this->update([
+            'is_read' => true,
+            'read_at' => now(),
+        ]);
     }
 }
