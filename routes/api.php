@@ -8,6 +8,7 @@ use App\Http\Controllers\LeaveTypeController;
 
 use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\LeaveRequestController;
+use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -20,10 +21,10 @@ Route::get('/default-avatars', [AuthController::class, 'getDefaultAvatars']);
 
 // Admin routes
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
-    Route::get('/users', [AuthController::class, 'getAllUsers']);
-    Route::post('/users', [AuthController::class, 'storeUser']);
-    Route::put('/users/{user}', [AuthController::class, 'updateUser']);
-    Route::delete('/users/{user}', [AuthController::class, 'destroyUser']);
+    Route::get('/users', [UserController::class, 'index']);
+    Route::post('/users', [UserController::class, 'store']);
+    Route::put('/users/{user}', [UserController::class, 'update']);
+    Route::delete('/users/{user}', [UserController::class, 'destroy']);
     Route::post('/admin/default-avatars', [AuthController::class, 'uploadDefaultAvatar']);
 });
 
