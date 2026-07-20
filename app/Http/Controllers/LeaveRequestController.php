@@ -19,7 +19,7 @@ class LeaveRequestController extends Controller
      */
     public function index(Request $request)
     {
-        $query = LeaveRequest::with(['leaveType', 'user', 'reviewer']);
+        $query = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer']);
 
         if ($request->user()->role === 'student') {
             $query->where('user_id', $request->user()->id);
@@ -81,7 +81,7 @@ class LeaveRequestController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Leave request retrieved successfully.',
-            'data' => $leaveRequest->load(['leaveType', 'user', 'reviewer', 'comments', 'attachments']),
+            'data' => $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer', 'comments', 'attachments']),
         ]);
     }
 
@@ -202,5 +202,70 @@ class LeaveRequestController extends Controller
             ],
         ], 200);
     }
+<<<<<<< HEAD
    
+=======
+
+    /**
+     * POST /api/approve/{id}
+     * Trainer only
+     */
+    public function approve(Request $request, LeaveRequest $leaveRequest)
+    {
+        if ($leaveRequest->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This request has already been reviewed.',
+            ], 422);
+        }
+
+        $leaveRequest->update([
+            'status' => 'approved',
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+            'review_note' => $request->input('review_note'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Leave request approved successfully.',
+            'data' => $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer']),
+        ]);
+    }
+
+    /**
+     * POST /api/reject/{id}
+     * Trainer only
+     */
+    public function reject(Request $request, LeaveRequest $leaveRequest)
+    {
+        if ($leaveRequest->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This request has already been reviewed.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'review_note' => ['required', 'string', 'min:5', 'max:500'],
+        ], [
+            'review_note.required' => 'Please provide a reason for rejecting this request.',
+        ]);
+
+        $leaveRequest->update([
+            'status' => 'rejected',
+            // 'approved_by' => $request->user()->id,
+
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+            'review_note' => $request->input('review_note'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Leave request rejected successfully.',
+            'data' => $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer']),
+        ]);
+    }
+>>>>>>> eb46ea7b9d031c34d3199648ec9d6ca1047aa986
 }

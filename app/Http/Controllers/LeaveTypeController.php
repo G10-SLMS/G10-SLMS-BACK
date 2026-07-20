@@ -46,7 +46,7 @@ class LeaveTypeController extends Controller
     public function show(string $id)
     {
         $leaveType = LeaveType::find($id);
-        
+
         // Return HTTP 404 if Leave type not found
         if (!$leaveType) {
             return response()->json([
@@ -105,7 +105,7 @@ class LeaveTypeController extends Controller
         // Check if Leave type is being used
         if ($leaveType->leaveRequests()->count() > 0) {
             return response()->json([
-                'succes' => false,
+                'success' => false,
                 'message' => 'Cannot delete leave type that is being used in leave requests.'
             ], 409);
         }
