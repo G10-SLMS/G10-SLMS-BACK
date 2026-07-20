@@ -6,17 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\LeaveRequest;
 use App\Http\Requests\StoreLeaveRequest;
 use App\Http\Requests\UpdateLeaveRequest;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class LeaveRequestController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    /**
-     * GET /api/leave-requests
-     * Trainer/Admin: all requests | Student: own only
-     */
+    public function __construct(protected NotificationService $notifications)
+    {
+    }
+
     public function index(Request $request)
     {
         $query = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer']);
@@ -44,10 +42,6 @@ class LeaveRequestController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/leave-requests
-     * Student only
-     */
     public function store(StoreLeaveRequest $request)
     {
         $leave = LeaveRequest::create([
@@ -56,20 +50,14 @@ class LeaveRequestController extends Controller
             'status' => 'pending',
         ]);
 
+        $this->notifications->notifyLeaveSubmitted($leave);
+
         return response()->json($leave->load('leaveType'), 201);
     }
 
-    /**
-     * GET /api/leave-requests/{id}
-     * Student/Trainer/Admin
-     */
     public function show(Request $request, LeaveRequest $leaveRequest)
     {
         $user = $request->user();
-
-        // if ($request->user()->role === 'student' && $leaveRequest->user_id !== $request->user()->id) {
-        //     return response()->json(['message' => 'Unauthorized'], 403);
-        // }
 
         if ($user->role === 'student' && $leaveRequest->user_id !== $user->id) {
             return response()->json([
@@ -85,10 +73,6 @@ class LeaveRequestController extends Controller
         ]);
     }
 
-    /**
-     * PUT /api/leave-requests/{id}
-     * Student only, before approval
-     */
     public function update(UpdateLeaveRequest $request, LeaveRequest $leaveRequest)
     {
         if ($leaveRequest->status !== 'pending') {
@@ -107,14 +91,6 @@ class LeaveRequestController extends Controller
         ]);
     }
 
-    /**
-     * DELETE /api/leave-requests/{id}
-     * Student only, cancel pending request
-     *  * - Verifies ownership (403 if not the student who created it)
-     * - Only allowed while status is 'pending' (422 otherwise)
-     * - Returns 204 No Content on success (no response body)
-     */
-
     public function destroy(Request $request, LeaveRequest $leaveRequest)
     {
         if ($leaveRequest->user_id !== $request->user()->id) {
@@ -132,6 +108,7 @@ class LeaveRequestController extends Controller
         }
 
         $deletedId = $leaveRequest->id;
+        $this->notifications->notifyLeaveCancelled($leaveRequest);
         $leaveRequest->delete();
 
         return response()->json([
@@ -143,10 +120,7 @@ class LeaveRequestController extends Controller
         ], 200);
     }
 
-    /**
-     * POST /api/approve/{id}
-     * Trainer only
-     */
+
     public function approve(Request $request, LeaveRequest $leaveRequest)
     {
         if ($leaveRequest->status !== 'pending') {
@@ -163,6 +137,8 @@ class LeaveRequestController extends Controller
             'review_note' => $request->input('review_note'),
         ]);
 
+        $this->notifications->notifyLeaveApproved($leaveRequest, $request->user());
+
         return response()->json([
             'success' => true,
             'message' => 'Leave request approved successfully.',
@@ -170,10 +146,6 @@ class LeaveRequestController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/reject/{id}
-     * Trainer only
-     */
     public function reject(Request $request, LeaveRequest $leaveRequest)
     {
         if ($leaveRequest->status !== 'pending') {
@@ -197,6 +169,8 @@ class LeaveRequestController extends Controller
             'reviewed_at' => now(),
             'review_note' => $request->input('review_note'),
         ]);
+
+        $this->notifications->notifyLeaveRejected($leaveRequest, $request->user());
 
         return response()->json([
             'success' => true,

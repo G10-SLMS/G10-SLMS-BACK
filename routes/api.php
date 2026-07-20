@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LeaveHistoryController;
 
 use App\Http\Controllers\LeaveTypeController;
+use App\Http\Controllers\NotificationController;
 
 use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\LeaveRequestController;
@@ -48,6 +49,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
+
+    // Notifications: Student/Trainer/Admin (each sees only their own)
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
 
     // Student only
