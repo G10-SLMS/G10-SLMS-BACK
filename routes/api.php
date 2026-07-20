@@ -49,17 +49,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Student only
     Route::middleware('role:student')->group(function () {
         Route::post('/leave-requests', [LeaveRequestController::class, 'store']);
-        Route::put('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update']);
         Route::delete('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'destroy']);
     });
 
-    // Trainer only
-    Route::middleware('role:trainer')->group(function () {
-        Route::post('/approve/{leaveRequest}', [LeaveRequestController::class, 'approve']);
-        Route::post('/reject/{leaveRequest}', [LeaveRequestController::class, 'reject']);
-    });
-
-
+    // Update leave request (Student: own, Trainer/Admin: any with status)
+    Route::put('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update']);
 
     // Shared: Student/Trainer/Admin
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
