@@ -21,6 +21,9 @@ Route::get('/default-avatars', [AuthController::class, 'getDefaultAvatars']);
 // Admin routes
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('/users', [AuthController::class, 'getAllUsers']);
+    Route::post('/users', [AuthController::class, 'storeUser']);
+    Route::put('/users/{user}', [AuthController::class, 'updateUser']);
+    Route::delete('/users/{user}', [AuthController::class, 'destroyUser']);
     Route::post('/admin/default-avatars', [AuthController::class, 'uploadDefaultAvatar']);
 });
 

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\AdminCreateUserRequest;
+use App\Http\Requests\AdminUpdateUserRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Models\Avatar;
@@ -156,6 +158,66 @@ class AuthController extends Controller
         return response()->json([
             'users' => $users,
             'count' => $users->count(),
+        ]);
+    }
+
+    public function storeUser(AdminCreateUserRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+        $data['role'] = $data['role'] ?? 'student';
+
+        $defaultPassword = config('auth.default_new_user_password', 'Student@123');
+        $data['password'] = Hash::make($defaultPassword);
+
+        $user = User::create($data);
+
+        $defaultAvatar = Avatar::fallbackFor($data['gender'] ?? null);
+        if ($defaultAvatar) {
+            $user->avatar_id = $defaultAvatar->id;
+            $user->save();
+        }
+
+        return response()->json([
+            'message' => 'User created successfully.',
+            'user' => $user->fresh()->load('avatar'),
+            // Returned once so the admin can share it with the new user.
+            'default_password' => $defaultPassword,
+        ], 201);
+    }
+
+    public function updateUser(AdminUpdateUserRequest $request, User $user): JsonResponse
+    {
+        $data = $request->validated();
+
+        if (! empty($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
+        } else {
+            unset($data['password']);
+        }
+
+        $user->update($data);
+
+        return response()->json([
+            'message' => 'User updated successfully.',
+            'user' => $user->fresh()->load('avatar'),
+        ]);
+    }
+
+    /**
+     * Delete a user from the User Management screen (admin only).
+     */
+    public function destroyUser(Request $request, User $user): JsonResponse
+    {
+        if ($request->user()->id === $user->id) {
+            return response()->json([
+                'message' => 'You cannot delete your own account.',
+            ], 422);
+        }
+
+        $user->delete();
+
+        return response()->json([
+            'message' => 'User deleted successfully.',
         ]);
     }
 
