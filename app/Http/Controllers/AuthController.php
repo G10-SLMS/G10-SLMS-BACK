@@ -151,13 +151,47 @@ class AuthController extends Controller
         ]);
     }
 
-    public function getAllUsers()
+    public function getAllUsers(Request $request)
     {
-        $users = User::all(['id', 'name', 'email', 'role', 'class_name', 'generation', 'province', 'gender', 'student_id', 'phone', 'created_at', 'updated_at']);
+        $query = User::query();
+
+        if ($request->filled('search')) {
+            $search = $request->string('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('role')) {
+            $query->where('role', $request->string('role'));
+        }
+
+        $perPage = (int) $request->input('per_page', 10);
+        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
+
+        $users = $query
+            ->select(['id', 'name', 'email', 'role', 'class_name', 'generation', 'province', 'gender', 'student_id', 'phone', 'created_at', 'updated_at'])
+            ->latest()
+            ->paginate($perPage);
+
+        $roleCounts = User::selectRaw('role, count(*) as count')->groupBy('role')->pluck('count', 'role');
 
         return response()->json([
-            'users' => $users,
-            'count' => $users->count(),
+            'users' => $users->items(),
+            'count' => $users->total(),
+            'meta' => [
+                'current_page' => $users->currentPage(),
+                'last_page' => $users->lastPage(),
+                'per_page' => $users->perPage(),
+                'total' => $users->total(),
+            ],
+            'counts' => [
+                'total' => User::count(),
+                'student' => (int) ($roleCounts['student'] ?? 0),
+                'trainer' => (int) ($roleCounts['trainer'] ?? 0),
+                'admin' => (int) ($roleCounts['admin'] ?? 0),
+            ],
         ]);
     }
 
