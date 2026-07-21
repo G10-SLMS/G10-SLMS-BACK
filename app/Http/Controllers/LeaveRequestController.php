@@ -49,6 +49,11 @@ class LeaveRequestController extends Controller
             $query->where('status', $status);
         }
 
+        // Filter by leave type
+        if ($leaveTypeId = $request->query('leave_type_id')) {
+            $query->where('leave_type_id', $leaveTypeId);
+        }
+
         // Filter by start date range (inclusive)
         if ($startDate = $request->query('start_date')) {
             $query->whereDate('start_date', '>=', $startDate);
@@ -94,7 +99,10 @@ class LeaveRequestController extends Controller
                 break;
         }
 
-        $leaveRequests = $query->paginate(10);
+        $perPage = (int) $request->query('per_page', 10);
+        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
+
+        $leaveRequests = $query->paginate($perPage);
 
         return response()->json([
             'success' => true,
