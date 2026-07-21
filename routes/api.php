@@ -72,6 +72,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Trainer/Admin only
     Route::middleware('role:trainer,admin')->group(function () {
+        Route::patch('/leave-requests/{leaveRequest}/approve', [LeaveRequestController::class, 'approve'])
+            ->name('leave-requests.approve');
+        Route::patch('/leave-requests/{leaveRequest}/reject', [LeaveRequestController::class, 'reject'])
+            ->name('leave-requests.reject');
+
+        // Legacy aliases kept for backward compatibility with older clients.
         Route::post('/approve/{leaveRequest}', [LeaveRequestController::class, 'approve']);
         Route::post('/reject/{leaveRequest}', [LeaveRequestController::class, 'reject']);
     });

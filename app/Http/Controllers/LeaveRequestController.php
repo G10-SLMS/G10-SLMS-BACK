@@ -7,6 +7,7 @@ use App\Models\LeaveRequest;
 use App\Http\Requests\StoreLeaveRequest;
 use App\Http\Requests\UpdateLeaveRequest;
 use App\Services\NotificationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class LeaveRequestController extends Controller
@@ -121,61 +122,59 @@ class LeaveRequestController extends Controller
     }
 
 
-    public function approve(Request $request, LeaveRequest $leaveRequest)
+    public function approve(Request $request, LeaveRequest $leaveRequest): JsonResponse
     {
-        if ($leaveRequest->status !== 'pending') {
-            return response()->json([
-                'success' => false,
-                'message' => 'This request has already been reviewed.',
-            ], 422);
-        }
-
-        $leaveRequest->update([
-            'status' => 'approved',
-            'reviewed_by' => $request->user()->id,
-            'reviewed_at' => now(),
-            'review_note' => $request->input('review_note'),
-        ]);
-
-        $this->notifications->notifyLeaveApproved($leaveRequest, $request->user());
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Leave request approved successfully.',
-            'data' => $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer']),
-        ]);
+        return $this->review($request, $leaveRequest, 'approved', 'Leave request approved successfully.');
     }
 
-    public function reject(Request $request, LeaveRequest $leaveRequest)
+    public function reject(Request $request, LeaveRequest $leaveRequest): JsonResponse
+    {
+        return $this->review($request, $leaveRequest, 'rejected', 'Leave request rejected successfully.');
+    }
+
+    protected function review(Request $request, LeaveRequest $leaveRequest, string $status, string $message): JsonResponse
     {
         if ($leaveRequest->status !== 'pending') {
             return response()->json([
                 'success' => false,
-                'message' => 'This request has already been reviewed.',
+                'message' => 'Only pending leave requests can be reviewed.',
             ], 422);
         }
 
         $validated = $request->validate([
-            'review_note' => ['required', 'string', 'min:5', 'max:500'],
-        ], [
-            'review_note.required' => 'Please provide a reason for rejecting this request.',
+            'comment' => ['nullable', 'string', 'max:500'],
+            'review_note' => ['nullable', 'string', 'max:500'],
         ]);
+
+        $comment = $validated['comment'] ?? $validated['review_note'] ?? null;
 
         $leaveRequest->update([
-            'status' => 'rejected',
-            // 'approved_by' => $request->user()->id,
-
+            'status' => $status,
             'reviewed_by' => $request->user()->id,
             'reviewed_at' => now(),
-            'review_note' => $request->input('review_note'),
+            'review_note' => $comment,
         ]);
 
-        $this->notifications->notifyLeaveRejected($leaveRequest, $request->user());
+        if ($status === 'approved') {
+            $this->notifications->notifyLeaveApproved($leaveRequest, $request->user());
+        } else {
+            $this->notifications->notifyLeaveRejected($leaveRequest, $request->user());
+        }
+
+        $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer']);
 
         return response()->json([
             'success' => true,
-            'message' => 'Leave request rejected successfully.',
-            'data' => $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer']),
+            'message' => $message,
+            'data' => $this->formatReviewedLeaveRequest($leaveRequest),
         ]);
+    }
+
+    protected function formatReviewedLeaveRequest(LeaveRequest $leaveRequest): array
+    {
+        $data = $leaveRequest->toArray();
+        $data['comment'] = $leaveRequest->review_note;
+
+        return $data;
     }
 }
