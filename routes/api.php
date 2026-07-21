@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
-
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\LeaveHistoryController;
 
 use App\Http\Controllers\LeaveTypeController;
@@ -74,6 +74,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // Shared: Student/Trainer/Admin
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show']);
+
+    // Comment routes 
+    Route::get('/comments', [CommentController::class, 'index']);
+    Route::post('/comments', [CommentController::class, 'store']);
+    Route::get('/comments/{comment}', [CommentController::class, 'show']);
+    Route::put('/comments/{comment}', [CommentController::class, 'update']);
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy']);
 
 
     // Student Leave History
