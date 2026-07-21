@@ -25,6 +25,7 @@ class Notification extends Model
 
     protected $casts = [
         'is_read' => 'boolean',
+        'read_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
