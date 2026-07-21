@@ -1,12 +1,8 @@
 <?php
 
 use App\Http\Controllers\AuthController;
-<<<<<<< HEAD
-use App\Http\Controllers\CommentController;
-=======
 use App\Http\Controllers\AttachmentController;
 
->>>>>>> 9cc2e366d5a29f79eca27f549cc5a7b9dd5844b9
 use App\Http\Controllers\LeaveHistoryController;
 
 use App\Http\Controllers\LeaveTypeController;
@@ -64,25 +60,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // Student only
     Route::middleware('role:student')->group(function () {
         Route::post('/leave-requests', [LeaveRequestController::class, 'store']);
-        Route::put('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update']);
         Route::delete('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'destroy']);
         Route::post('/leave-requests/{leaveRequest}/attachments', [AttachmentController::class, 'store'])
             ->name('leave-requests.attachments.store');
     });
 
-    // Trainer/Admin only
-    Route::middleware('role:trainer,admin')->group(function () {
-        Route::patch('/leave-requests/{leaveRequest}/approve', [LeaveRequestController::class, 'approve'])
-            ->name('leave-requests.approve');
-        Route::patch('/leave-requests/{leaveRequest}/reject', [LeaveRequestController::class, 'reject'])
-            ->name('leave-requests.reject');
 
-        // Legacy aliases kept for backward compatibility with older clients.
-        Route::post('/approve/{leaveRequest}', [LeaveRequestController::class, 'approve']);
-        Route::post('/reject/{leaveRequest}', [LeaveRequestController::class, 'reject']);
-    });
-
-
+    // Update leave request (Student: own, Trainer/Admin: any with status)
+    Route::put('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update']);
+    
 
     // Shared: Student/Trainer/Admin
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
