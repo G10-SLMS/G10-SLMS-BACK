@@ -224,6 +224,8 @@ class LeaveRequestController extends Controller
                 'cancelled_at' => now(),
             ]);
 
+            $this->notifications->notifyLeaveCancelled($leaveRequest);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Leave request cancelled successfully.',

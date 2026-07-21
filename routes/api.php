@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AttachmentController;
-
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\LeaveHistoryController;
 
 use App\Http\Controllers\LeaveTypeController;
@@ -68,13 +68,19 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Update leave request (Student: own, Trainer/Admin: any with status)
     Route::put('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update']);
-    
+
+
+    // Trainer: own assigned students only (not the full user directory)
+    Route::middleware('role:trainer')->group(function () {
+        Route::get('/trainer/students', [UserController::class, 'assignedStudents']);
+    });
+
 
     // Shared: Student/Trainer/Admin
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show']);
 
-    // Comment routes 
+    // Comment routes
     Route::get('/comments', [CommentController::class, 'index']);
     Route::post('/comments', [CommentController::class, 'store']);
     Route::get('/comments/{comment}', [CommentController::class, 'show']);
