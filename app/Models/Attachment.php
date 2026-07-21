@@ -23,8 +23,24 @@ class Attachment extends Model
         'verified_at'
     ];
 
+    protected $casts = [
+        'size' => 'integer',
+        'is_verified' => 'boolean',
+        'verified_at' => 'datetime',
+    ];
+
     public function leaveRequest(): BelongsTo
     {
         return $this->belongsTo(LeaveRequest::class);
+    }
+
+    public function uploadedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function verifiedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'verified_by');
     }
 }

@@ -15,6 +15,7 @@ class NotificationResource extends JsonResource
             'title' => $this->title,
             'message' => $this->message,
             'leave_request_id' => $this->leave_request_id,
+            'is_read' => (bool) $this->is_read,
             'actor' => $this->whenLoaded('creator', fn () => $this->creator ? [
                 'id' => $this->creator->id,
                 'name' => $this->creator->name,
