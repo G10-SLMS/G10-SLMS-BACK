@@ -65,13 +65,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Update leave request (Student: own, Trainer/Admin: any with status)
     Route::put('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update']);
-
-    // Trainer/Admin only
-    Route::middleware('role:trainer,admin')->group(function () {
-        Route::post('/approve/{leaveRequest}', [LeaveRequestController::class, 'approve']);
-        Route::post('/reject/{leaveRequest}', [LeaveRequestController::class, 'reject']);
-    });
-
     
 
     // Shared: Student/Trainer/Admin
