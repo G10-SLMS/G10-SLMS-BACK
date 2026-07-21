@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AttachmentController;
 
 use App\Http\Controllers\LeaveHistoryController;
 
@@ -60,6 +61,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:student')->group(function () {
         Route::post('/leave-requests', [LeaveRequestController::class, 'store']);
         Route::delete('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'destroy']);
+        Route::post('/leave-requests/{leaveRequest}/attachments', [AttachmentController::class, 'store'])
+            ->name('leave-requests.attachments.store');
     });
 
 
@@ -70,6 +73,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // Shared: Student/Trainer/Admin
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show']);
+
+    // Comment routes 
+    Route::get('/comments', [CommentController::class, 'index']);
+    Route::post('/comments', [CommentController::class, 'store']);
+    Route::get('/comments/{comment}', [CommentController::class, 'show']);
+    Route::put('/comments/{comment}', [CommentController::class, 'update']);
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy']);
 
 
     // Student Leave History

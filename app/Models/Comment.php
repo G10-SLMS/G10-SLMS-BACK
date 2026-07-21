@@ -17,7 +17,6 @@ class Comment extends Model
         'body',
         'edited_at',
         'parent_id',
-        'body',
     ];
 
     public function leaveRequest(): BelongsTo
@@ -28,5 +27,10 @@ class Comment extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function replies()
+    {
+        return $this->hasMany(Comment::class, 'parent_id');
     }
 }

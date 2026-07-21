@@ -7,6 +7,7 @@ use App\Models\LeaveRequest;
 use App\Http\Requests\StoreLeaveRequest;
 use App\Http\Requests\UpdateLeaveRequest;
 use App\Services\NotificationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class LeaveRequestController extends Controller
