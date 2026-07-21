@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AttachmentController;
 
 use App\Http\Controllers\LeaveHistoryController;
 
@@ -61,6 +62,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/leave-requests', [LeaveRequestController::class, 'store']);
         Route::put('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update']);
         Route::delete('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'destroy']);
+        Route::post('/leave-requests/{leaveRequest}/attachments', [AttachmentController::class, 'store'])
+            ->name('leave-requests.attachments.store');
     });
 
     // Trainer/Admin only
