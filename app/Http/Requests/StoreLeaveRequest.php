@@ -19,6 +19,7 @@ class StoreLeaveRequest extends FormRequest
             'start_date' => ['required', 'date', 'after_or_equal:today'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['required', 'string', 'min:5', 'max:500'],
+            'attachment' => ['nullable'],
         ];
     }
 

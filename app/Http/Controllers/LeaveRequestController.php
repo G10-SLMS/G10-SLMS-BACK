@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\LeaveRequest;
+use App\Models\Attachment;
 use App\Http\Requests\StoreLeaveRequest;
 use App\Http\Requests\UpdateLeaveRequest;
 use App\Services\NotificationService;
@@ -15,7 +16,7 @@ class LeaveRequestController extends Controller
 
     public function index(Request $request)
     {
-        $query = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer']);
+        $query = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer', 'attachments']);
 
         // Students can only see their own requests
         if ($request->user()->role === 'student') {
@@ -122,9 +123,40 @@ class LeaveRequestController extends Controller
             'status' => 'pending',
         ]);
 
-        $this->notifications->notifyLeaveSubmitted($leave);
+        // Handle file attachments
+        if ($request->hasFile('attachment')) {
+            $files = $request->file('attachment');
+            
+            // Handle both single file and array of files
+            if (!is_array($files)) {
+                $files = [$files];
+            }
+            
+            foreach ($files as $file) {
+                $path = $file->store('attachments/leave-requests', 'public');
+                
+                Attachment::create([
+                    'leave_request_id' => $leave->id,
+                    'original_name' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'mime_type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                    'uploaded_by' => $request->user()->id,
+                    'is_verified' => false,
+                ]);
+            }
+        }
 
-        return response()->json($leave->load('leaveType'), 201);
+        $this->notifications->notifyLeaveSubmitted($leave);
+        
+        // Reload the model with relationships to get fresh data
+        $leave = $leave->fresh(['leaveType', 'attachments']);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Leave request created successfully",
+            'data' => $leave->toArray(),
+        ], 201);
     }
     /**
      * GET /api/leave-requests/{id}
@@ -268,5 +300,48 @@ class LeaveRequestController extends Controller
                 'id' => $deletedId,
             ],
         ], 200);
+    }
+
+    /**
+     * Download attachment file
+     * GET /api/attachments/{attachment}/download
+     */
+    public function downloadAttachment(Request $request, Attachment $attachment)
+    {
+        $user = $request->user();
+
+        // Check if user has access to this attachment's leave request
+        $leaveRequest = $attachment->leaveRequest;
+        
+        if (!$leaveRequest) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Attachment not found.',
+            ], 404);
+        }
+
+        // Students can only download their own attachments
+        if ($user->role === 'student' && $leaveRequest->user_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to download this attachment.',
+            ], 403);
+        }
+
+        // Check if file exists
+        $filePath = storage_path('app/public/' . $attachment->path);
+        
+        if (!file_exists($filePath)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'File not found on server.',
+            ], 404);
+        }
+
+        // Return file download response
+        return response()->download($filePath, $attachment->original_name, [
+            'Content-Type' => $attachment->mime_type,
+            'Content-Disposition' => 'attachment; filename="' . $attachment->original_name . '"',
+        ]);
     }
 }
