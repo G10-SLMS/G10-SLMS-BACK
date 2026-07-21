@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Avatar;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -52,9 +53,6 @@ class UserSeeder extends Seeder
             );
         });
 
-        // Demo accounts used by the login page's quick-fill buttons.
-        // Both are role=student — "fellow" is just a different email
-        // domain convention (student.* vs fellow.*), not a separate role.
         User::updateOrCreate(
             ['email' => 'demo.student@student.passerellesnumeriques.org'],
             [
@@ -87,7 +85,6 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // 10 students, round-robin assigned to the trainers above
         for ($i = 1; $i <= 10; $i++) {
             $trainer = $trainers[($i - 1) % $trainers->count()];
 
@@ -108,7 +105,6 @@ class UserSeeder extends Seeder
             );
         }
 
-        // A handful of extra random students via the factory, spread across trainers
         User::factory()
             ->count(5)
             ->sequence(fn ($sequence) => [
@@ -121,5 +117,14 @@ class UserSeeder extends Seeder
                 'gender' => $genders[$sequence->index % 2],
             ])
             ->create();
+
+        User::whereNull('avatar_id')->get()->each(function (User $user) {
+            $avatar = Avatar::fallbackFor($user->gender);
+
+            if ($avatar) {
+                $user->avatar_id = $avatar->id;
+                $user->save();
+            }
+        });
     }
 }

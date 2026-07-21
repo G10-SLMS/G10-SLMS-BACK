@@ -149,16 +149,6 @@ class AuthController extends Controller
         ]);
     }
 
-    public function getAllUsers()
-    {
-        $users = User::all(['id', 'name', 'email', 'role', 'class_name', 'generation', 'province', 'gender', 'student_id', 'phone', 'created_at', 'updated_at']);
-
-        return response()->json([
-            'users' => $users,
-            'count' => $users->count(),
-        ]);
-    }
-
     public function uploadDefaultAvatar(Request $request)
     {
         if (! $request->hasFile('avatar')) {

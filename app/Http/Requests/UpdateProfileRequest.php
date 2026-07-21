@@ -33,8 +33,8 @@ class UpdateProfileRequest extends FormRequest
             'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
 
             // Student-only
-            'id_card' => ['sometimes', 'nullable', 'string', 'max:50'],
-            'class' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'student_id' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'class_name' => ['sometimes', 'nullable', 'string', 'max:100'],
             'generation' => ['sometimes', 'nullable', 'string', 'max:50'],
             'province' => ['sometimes', 'nullable', 'string', 'max:100'],
             'gender' => ['sometimes', 'nullable', Rule::in(['male', 'female', 'other'])],
