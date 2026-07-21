@@ -1,17 +1,11 @@
 <?php
 
-use App\Http\Controllers\AuthController;
-<<<<<<< HEAD
-use App\Http\Controllers\CommentController;
-=======
 use App\Http\Controllers\AttachmentController;
-
->>>>>>> 9cc2e366d5a29f79eca27f549cc5a7b9dd5844b9
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\LeaveHistoryController;
-
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\NotificationController;
-
 use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\UserController;
