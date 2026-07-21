@@ -73,10 +73,7 @@ class NotificationService
     protected function reviewersFor(User $student): array
     {
         $ids = User::query()
-            ->where('role', 'admin')
-            ->orWhere(function ($query) use ($student) {
-                $query->where('role', 'trainer')->where('id', $student->trainer_id);
-            })
+            ->whereIn('role', ['admin', 'trainer'])
             ->pluck('id')
             ->unique()
             ->values()
