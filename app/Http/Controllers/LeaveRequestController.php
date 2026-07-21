@@ -126,16 +126,13 @@ class LeaveRequestController extends Controller
 
         return response()->json($leave->load('leaveType'), 201);
     }
-    /**
-     * GET /api/leave-requests/{id}
-     * Trainer/Admin: 
-     */
+
     public function show(Request $request, $id)
     {
         $user = $request->user();
 
         $leaveRequest = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer', 'comments', 'attachments'])->find($id);
-        
+
         if (!$leaveRequest) {
             return response()->json([
                 'success' => false,
@@ -143,7 +140,7 @@ class LeaveRequestController extends Controller
                 'data' => null,
             ], 404);
         }
-        
+
         // Student can only view their own requests
         if ($user->role === 'student' && $leaveRequest->user_id !== $user->id) {
             return response()->json([
@@ -159,11 +156,6 @@ class LeaveRequestController extends Controller
         ]);
     }
 
-    /**
-     * PUT /api/leave-requests/{id}
-     * Student: update own pending request
-     * Trainer/Admin: approve/reject any request
-     */
     public function update(UpdateLeaveRequest $request, LeaveRequest $leaveRequest)
     {
         $user = $request->user();
@@ -200,6 +192,12 @@ class LeaveRequestController extends Controller
             $message = $validated['status'] === 'approved'
                 ? 'Leave request approved successfully.'
                 : 'Leave request rejected successfully.';
+
+            if ($validated['status'] === 'approved') {
+                $this->notifications->notifyLeaveApproved($leaveRequest, $user);
+            } else {
+                $this->notifications->notifyLeaveRejected($leaveRequest, $user);
+            }
 
             return response()->json([
                 'success' => true,
