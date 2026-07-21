@@ -72,8 +72,6 @@ class LeaveHistoryController extends Controller
             $query->whereDate('end_date', '<=', $endDate);
         }
 
-        // 
-
         // Sorting
         $sortBy = $request->query('sort', 'latest'); // Default to latest (submission date)
         
