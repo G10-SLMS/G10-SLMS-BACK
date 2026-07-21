@@ -14,6 +14,8 @@ class LeaveHistoryController extends Controller
      * Searchable by:
      * - Leave request ID (exact or partial match on ID)
      * - Leave type name (partial match on leave type name)
+     * - Student name (partial match on user name)
+     * - Student ID (partial match on student_id)
      *
      * Filterable by:
      * - leave_type: Filter by leave type ID
@@ -37,6 +39,17 @@ class LeaveHistoryController extends Controller
                 $q->orWhereHas('leaveType', function ($leaveTypeQuery) use ($search) {
                     $leaveTypeQuery->where('name', 'LIKE', '%' . $search . '%');
                 });
+
+                // Search by student name via user relationship
+                $q->orWhereHas('user', function ($userQuery) use ($search) {
+                    $userQuery->where('name', 'LIKE', '%' . $search . '%');
+                });
+
+                // Search by student ID via user relationship
+                $q->orWhereHas('user', function ($userQuery) use ($search) {
+                    $userQuery->where('student_id', 'LIKE', '%' . $search . '%');
+                });
+
             });
         }
 
@@ -58,6 +71,8 @@ class LeaveHistoryController extends Controller
         if ($endDate = $request->query('end_date')) {
             $query->whereDate('end_date', '<=', $endDate);
         }
+
+        // 
 
         // Sorting
         $sortBy = $request->query('sort', 'latest'); // Default to latest (submission date)
