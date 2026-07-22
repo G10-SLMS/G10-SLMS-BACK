@@ -113,4 +113,20 @@ class UserController extends Controller
             'message' => 'User deleted successfully.',
         ]);
     }
+
+    public function assignedStudents(Request $request): JsonResponse
+    {
+        $trainer = $request->user();
+
+        $students = User::query()
+            ->where('role', 'student')
+            ->where('trainer_id', $trainer->id)
+            ->with('avatar')
+            ->get();
+
+        return response()->json([
+            'students' => UserResource::collection($students),
+            'count' => $students->count(),
+        ]);
+    }
 }

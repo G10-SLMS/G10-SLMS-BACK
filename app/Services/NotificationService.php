@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Comment;
 use App\Models\LeaveRequest;
 use App\Models\Notification;
 use App\Models\User;
@@ -9,9 +10,64 @@ use Illuminate\Support\Facades\DB;
 
 class NotificationService
 {
-    public function __construct()
+    public function __construct(protected MentionParserService $mentionParser)
     {
         //
+    }
+
+    public function notifyCommentAdded(Comment $comment, User $author): void
+    {
+        $leaveRequest = $comment->leaveRequest;
+
+        if (!$leaveRequest) {
+            return;
+        }
+
+        $participantIds = [];
+
+        if ($leaveRequest->user_id !== $author->id) {
+            $participantIds[] = $leaveRequest->user_id;
+        }
+
+        if ($leaveRequest->reviewed_by && $leaveRequest->reviewed_by !== $author->id) {
+            $participantIds[] = $leaveRequest->reviewed_by;
+        }
+
+        if ($comment->parent_id) {
+            $parentAuthorId = Comment::withTrashed()->find($comment->parent_id)?->user_id;
+
+            if ($parentAuthorId && $parentAuthorId !== $author->id) {
+                $participantIds[] = $parentAuthorId;
+            }
+        }
+
+        $participantIds = array_values(array_unique($participantIds));
+
+        $this->createForMany($participantIds, [
+            'leave_request_id' => $leaveRequest->id,
+            'type' => $comment->parent_id ? 'comment_reply' : 'comment_added',
+            'title' => $comment->parent_id ? 'New reply' : 'New comment',
+            'message' => $comment->parent_id
+                ? "{$author->name} replied to a comment on a leave request."
+                : "{$author->name} commented on a leave request.",
+            'priority' => 'low',
+            'created_by' => $author->id,
+        ]);
+
+        $mentionedIds = array_diff(
+            $this->mentionParser->extractUserIds($comment->body),
+            [$author->id],
+            $participantIds,
+        );
+
+        $this->createForMany(array_values($mentionedIds), [
+            'leave_request_id' => $leaveRequest->id,
+            'type' => 'comment_mention',
+            'title' => 'You were mentioned',
+            'message' => "{$author->name} mentioned you in a comment.",
+            'priority' => 'normal',
+            'created_by' => $author->id,
+        ]);
     }
 
     public function notifyLeaveSubmitted(LeaveRequest $leaveRequest): void
@@ -73,10 +129,7 @@ class NotificationService
     protected function reviewersFor(User $student): array
     {
         $ids = User::query()
-            ->where('role', 'admin')
-            ->orWhere(function ($query) use ($student) {
-                $query->where('role', 'trainer')->where('id', $student->trainer_id);
-            })
+            ->whereIn('role', ['admin', 'trainer'])
             ->pluck('id')
             ->unique()
             ->values()

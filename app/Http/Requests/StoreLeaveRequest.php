@@ -19,6 +19,7 @@ class StoreLeaveRequest extends FormRequest
             'start_date' => ['required', 'date', 'after_or_equal:today'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['required', 'string', 'min:5', 'max:500'],
+            'supporting_document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:5120'],
         ];
     }
 
@@ -38,6 +39,10 @@ class StoreLeaveRequest extends FormRequest
             'end_date.required' => 'End date is required.',
             'end_date.date' => 'End date must be a valid date.',
             'end_date.after_or_equal' => 'End date must be on or after the start date.',
+
+            'supporting_document.file' => 'Supporting document must be a valid file.',
+            'supporting_document.mimes' => 'Supporting document must be a PDF, DOCX, JPG, or PNG file.',
+            'supporting_document.max' => 'Supporting document must not exceed 5MB.',
         ];
     }
 }

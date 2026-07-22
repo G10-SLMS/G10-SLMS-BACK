@@ -7,21 +7,6 @@ use Illuminate\Http\Request;
 
 class LeaveHistoryController extends Controller
 {
-    /**
-     * GET /api/leave-history?search=&leave_type=&status=&start_date=&end_date=
-     * Student only - retrieve their own leave history with optional search and filters
-     *
-     * Searchable by:
-     * - Leave request ID (exact or partial match on ID)
-     * - Leave type name (partial match on leave type name)
-     * - Student name (partial match on user name)
-     * - Student ID (partial match on student_id)
-     *
-     * Filterable by:
-     * - leave_type: Filter by leave type ID
-     * - status: Filter by status (pending, approved, rejected, cancelled)
-     * - start_date & end_date: Filter by date range (inclusive)
-     */
     public function index(Request $request)
     {
         $query = LeaveRequest::with(['leaveType', 'reviewer'])
@@ -74,7 +59,7 @@ class LeaveHistoryController extends Controller
 
         // Sorting
         $sortBy = $request->query('sort', 'latest'); // Default to latest (submission date)
-        
+
         switch ($sortBy) {
             case 'start_date_asc':
                 $query->orderBy('start_date', 'asc');
@@ -98,7 +83,10 @@ class LeaveHistoryController extends Controller
                 break;
         }
 
-        $leaveHistory = $query->paginate(10);
+        $perPage = (int) $request->query('per_page', 10);
+        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
+
+        $leaveHistory = $query->paginate($perPage);
 
         return response()->json([
             'success' => true,
