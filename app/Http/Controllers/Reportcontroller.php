@@ -36,6 +36,7 @@ class ReportController extends Controller
                 'summary' => $this->buildSummary(clone $baseQuery),
                 'by_leave_type' => $this->buildByLeaveType(clone $baseQuery),
                 'monthly' => $this->buildMonthly(clone $baseQuery, $startDate, $endDate),
+                'top_students' => $this->buildTopStudents(clone $baseQuery),
             ],
         ]);
     }
@@ -103,6 +104,25 @@ class ReportController extends Controller
                 'leave_type_id' => (int) $row->leave_type_id,
                 'name' => $row->name,
                 'count' => (int) $row->count,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function buildTopStudents(Builder $query): array
+    {
+        return $query
+            ->join('users', 'users.id', '=', 'leave_requests.user_id')
+            ->selectRaw('users.id as user_id, users.name as name, users.email as email, COUNT(leave_requests.id) as total_requests')
+            ->groupBy('users.id', 'users.name', 'users.email')
+            ->orderByDesc('total_requests')
+            ->limit(10)
+            ->get()
+            ->map(fn ($row) => [
+                'user_id' => (int) $row->user_id,
+                'name' => $row->name,
+                'email' => $row->email,
+                'total_requests' => (int) $row->total_requests,
             ])
             ->values()
             ->all();
