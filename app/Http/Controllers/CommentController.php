@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Comment;
 use App\Http\Resources\CommentResource;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -12,6 +13,62 @@ use Illuminate\Auth\Access\AuthorizationException;
 
 class CommentController extends Controller
 {
+    public function __construct(protected NotificationService $notificationService)
+    {
+        //
+    }
+
+    /**
+     * Store a newly created comment (or reply) in storage.
+     */
+    public function store(Request $request)
+    {
+        try {
+            $this->authorize('create', Comment::class);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to comment on this leave request.',
+                'data' => null,
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'leave_request_id' => 'required|integer|exists:leave_requests,id',
+            'body' => 'required|string|max:1000',
+            'parent_id' => 'nullable|integer|exists:comments,id',
+        ]);
+
+        if (!empty($validated['parent_id'])) {
+            $parent = Comment::find($validated['parent_id']);
+
+            if (!$parent || (int) $parent->leave_request_id !== (int) $validated['leave_request_id']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The parent comment does not belong to this leave request.',
+                    'data' => null,
+                ], 422);
+            }
+        }
+
+        $comment = Comment::create([
+            'leave_request_id' => $validated['leave_request_id'],
+            'user_id' => Auth::id(),
+            'body' => $validated['body'],
+            'parent_id' => $validated['parent_id'] ?? null,
+        ]);
+
+        $comment->load('user', 'replies.user');
+
+        $this->notificationService->notifyCommentAdded($comment, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comment added successfully',
+            'data' => (new CommentResource($comment))->toArray($request),
+        ], 201);
+    }
+
     /**
      * Display a listing of the resource.
      */
