@@ -30,7 +30,6 @@ class Attachment extends Model
         'verified_at' => 'datetime',
     ];
 
-
     protected $appends = ['url'];
 
     public function getUrlAttribute(): ?string

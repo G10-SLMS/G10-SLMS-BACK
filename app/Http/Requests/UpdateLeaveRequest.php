@@ -37,9 +37,8 @@ class UpdateLeaveRequest extends FormRequest
                 $rules['review_note'] = ['nullable', 'string', 'max:500'];
             }
         } else {
-            // Students can only cancel their own pending requests
+            
             $rules['status'] = ['sometimes', 'required', 'in:cancelled'];
-
             $rules['supporting_document'] = [
                 $this->attachmentStillMissingAfterSave() ? 'required' : 'nullable',
                 'file',
