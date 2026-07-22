@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\LeaveType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -19,8 +20,24 @@ class StoreLeaveRequest extends FormRequest
             'start_date' => ['required', 'date', 'after_or_equal:today'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['required', 'string', 'min:5', 'max:500'],
-            'supporting_document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:5120'],
+            'supporting_document' => [
+                $this->selectedLeaveTypeRequiresAttachment() ? 'required' : 'nullable',
+                'file',
+                'mimes:pdf,jpg,jpeg,png,docx',
+                'max:5120',
+            ],
         ];
+    }
+
+    protected function selectedLeaveTypeRequiresAttachment(): bool
+    {
+        $leaveTypeId = $this->input('leave_type_id');
+
+        if (!$leaveTypeId) {
+            return false;
+        }
+
+        return (bool) LeaveType::whereKey($leaveTypeId)->value('requires_attachment');
     }
 
     public function messages(): array
@@ -40,6 +57,7 @@ class StoreLeaveRequest extends FormRequest
             'end_date.date' => 'End date must be a valid date.',
             'end_date.after_or_equal' => 'End date must be on or after the start date.',
 
+            'supporting_document.required' => 'This leave type requires a supporting document.',
             'supporting_document.file' => 'Supporting document must be a valid file.',
             'supporting_document.mimes' => 'Supporting document must be a PDF, DOCX, JPG, or PNG file.',
             'supporting_document.max' => 'Supporting document must not exceed 5MB.',
