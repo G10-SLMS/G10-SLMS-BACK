@@ -54,41 +54,27 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
-
     // Student only
     Route::middleware('role:student')->group(function () {
         Route::post('/leave-requests', [LeaveRequestController::class, 'store']);
-        Route::put('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update']);
         Route::delete('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'destroy']);
         Route::post('/leave-requests/{leaveRequest}/attachments', [AttachmentController::class, 'store'])
             ->name('leave-requests.attachments.store');
     });
 
-    // Trainer/Admin only
-    Route::middleware('role:trainer,admin')->group(function () {
-        Route::patch('/leave-requests/{leaveRequest}/approve', [LeaveRequestController::class, 'approve'])
-            ->name('leave-requests.approve');
-        Route::patch('/leave-requests/{leaveRequest}/reject', [LeaveRequestController::class, 'reject'])
-            ->name('leave-requests.reject');
-
-        // Legacy aliases kept for backward compatibility with older clients.
-        Route::post('/approve/{leaveRequest}', [LeaveRequestController::class, 'approve']);
-        Route::post('/reject/{leaveRequest}', [LeaveRequestController::class, 'reject']);
-    });
-
-
+    // Update leave request (Student: own, Trainer/Admin: any with status)
+    Route::put('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update']);
 
     // Shared: Student/Trainer/Admin
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show']);
 
-    // Comment routes 
+    // Comment routes
     Route::get('/comments', [CommentController::class, 'index']);
     Route::post('/comments', [CommentController::class, 'store']);
     Route::get('/comments/{comment}', [CommentController::class, 'show']);
     Route::put('/comments/{comment}', [CommentController::class, 'update']);
     Route::delete('/comments/{comment}', [CommentController::class, 'destroy']);
-
 
     // Student Leave History
     Route::middleware('role:student')->group(function () {
