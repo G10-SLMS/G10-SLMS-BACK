@@ -12,8 +12,14 @@ class ReportController extends Controller
 {
     public function summary(Request $request)
     {
+        $request->validate([
+            'range' => ['nullable', 'string', 'in:30d,90d,ytd,custom'],
+            'start_date' => ['nullable', 'date', 'required_if:range,custom'],
+            'end_date' => ['nullable', 'date', 'required_if:range,custom', 'after_or_equal:start_date'],
+        ]);
+
         $range = $request->query('range', '30d');
-        [$startDate, $endDate] = $this->resolveRange($range);
+        [$startDate, $endDate] = $this->resolveRange($request, $range);
 
         $baseQuery = LeaveRequest::query()
             ->whereBetween('leave_requests.created_at', [$startDate, $endDate]);
@@ -25,6 +31,8 @@ class ReportController extends Controller
             'message' => 'Report data retrieved successfully.',
             'data' => [
                 'range' => $range,
+                'start_date' => $startDate->toDateString(),
+                'end_date' => $endDate->toDateString(),
                 'summary' => $this->buildSummary(clone $baseQuery),
                 'by_leave_type' => $this->buildByLeaveType(clone $baseQuery),
                 'monthly' => $this->buildMonthly(clone $baseQuery, $startDate, $endDate),
@@ -43,8 +51,15 @@ class ReportController extends Controller
         }
     }
 
-    private function resolveRange(?string $range): array
+    private function resolveRange(Request $request, ?string $range): array
     {
+        if ($range === 'custom') {
+            $start = Carbon::parse($request->query('start_date'))->startOfDay();
+            $end = Carbon::parse($request->query('end_date'))->endOfDay();
+
+            return [$start, $end];
+        }
+
         $end = Carbon::now()->endOfDay();
 
         $start = match ($range) {
