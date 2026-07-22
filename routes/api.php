@@ -6,6 +6,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\LeaveHistoryController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\UserController;
@@ -88,6 +89,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:student')->group(function () {
         Route::get('/leave-history', [LeaveHistoryController::class, 'index']);
         Route::get('/leave-history/{id}', [LeaveHistoryController::class, 'show']);
+    });
+
+    // Reports Dashboard: Admin (org-wide) / Trainer (own students only)
+    Route::middleware('role:admin,trainer')->group(function () {
+        Route::get('/reports/summary', [ReportController::class, 'summary']);
     });
 });
 
