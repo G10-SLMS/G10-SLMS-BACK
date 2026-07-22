@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 class Attachment extends Model
 {
@@ -28,6 +29,14 @@ class Attachment extends Model
         'is_verified' => 'boolean',
         'verified_at' => 'datetime',
     ];
+
+
+    protected $appends = ['url'];
+
+    public function getUrlAttribute(): ?string
+    {
+        return $this->path ? Storage::disk('public')->url($this->path) : null;
+    }
 
     public function leaveRequest(): BelongsTo
     {

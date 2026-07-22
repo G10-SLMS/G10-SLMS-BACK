@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateLeaveRequest;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class LeaveRequestController extends Controller
 {
@@ -273,12 +274,42 @@ class LeaveRequestController extends Controller
             ]);
         }
 
+        if ($request->boolean('remove_attachment') && !$request->hasFile('supporting_document')) {
+            foreach ($leaveRequest->attachments as $existing) {
+                Storage::disk('public')->delete($existing->path);
+                $existing->delete();
+            }
+        }
+
+        // Replace/add the supporting document if a new file was uploaded.
+        if ($request->hasFile('supporting_document')) {
+            foreach ($leaveRequest->attachments as $existing) {
+                Storage::disk('public')->delete($existing->path);
+                $existing->delete();
+            }
+
+            $file = $request->file('supporting_document');
+            $path = $file->store('attachments/leave-requests', 'public');
+
+            Attachment::create([
+                'leave_request_id' => $leaveRequest->id,
+                'original_name' => $file->getClientOriginalName(),
+                'path' => $path,
+                'mime_type' => $file->getMimeType(),
+                'size' => $file->getSize(),
+                'uploaded_by' => $user->id,
+                'is_verified' => false,
+            ]);
+        }
+
+        unset($validated['supporting_document'], $validated['remove_attachment']);
+
         $leaveRequest->update($validated);
 
         return response()->json([
             'success' => true,
             'message' => 'Leave request updated successfully.',
-            'data' => $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer']),
+            'data' => $leaveRequest->fresh(['leaveType', 'user.avatar', 'reviewer', 'attachments']),
         ]);
     }
 
@@ -311,10 +342,6 @@ class LeaveRequestController extends Controller
         ], 200);
     }
 
-    /**
-     * Download attachment file
-     * GET /api/attachments/{attachment}/download
-     */
     public function downloadAttachment(Request $request, Attachment $attachment)
     {
         $user = $request->user();

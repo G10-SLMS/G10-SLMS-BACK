@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\LeaveType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -38,9 +39,44 @@ class UpdateLeaveRequest extends FormRequest
         } else {
             // Students can only cancel their own pending requests
             $rules['status'] = ['sometimes', 'required', 'in:cancelled'];
+
+            $rules['supporting_document'] = [
+                $this->attachmentStillMissingAfterSave() ? 'required' : 'nullable',
+                'file',
+                'mimes:pdf,jpg,jpeg,png,docx',
+                'max:5120',
+            ];
+            $rules['remove_attachment'] = ['sometimes', 'boolean'];
         }
 
         return $rules;
+    }
+
+    protected function attachmentStillMissingAfterSave(): bool
+    {
+        // A new file is being uploaded — requirement satisfied regardless.
+        if ($this->hasFile('supporting_document')) {
+            return false;
+        }
+
+        $leaveTypeId = $this->input('leave_type_id') ?? $this->route('leaveRequest')?->leave_type_id;
+
+        $requiresAttachment = $leaveTypeId
+            ? (bool) LeaveType::whereKey($leaveTypeId)->value('requires_attachment')
+            : false;
+
+        if (!$requiresAttachment) {
+            return false;
+        }
+
+        // Explicitly removing the existing document with nothing to replace it.
+        if ($this->boolean('remove_attachment')) {
+            return true;
+        }
+
+        $leaveRequest = $this->route('leaveRequest');
+
+        return !($leaveRequest && $leaveRequest->attachments()->exists());
     }
 
     public function messages(): array
@@ -70,6 +106,10 @@ class UpdateLeaveRequest extends FormRequest
             $messages['review_note.max'] = 'Review note must not exceed 500 characters.';
         } else {
             $messages['status.in'] = 'Status must be cancelled.';
+            $messages['supporting_document.required'] = 'This leave type requires a supporting document.';
+            $messages['supporting_document.file'] = 'Supporting document must be a valid file.';
+            $messages['supporting_document.mimes'] = 'Supporting document must be a PDF, DOCX, JPG, or PNG file.';
+            $messages['supporting_document.max'] = 'Supporting document must not exceed 5MB.';
         }
 
         return $messages;
