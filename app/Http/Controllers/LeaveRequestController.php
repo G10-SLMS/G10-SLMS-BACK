@@ -127,23 +127,23 @@ class LeaveRequestController extends Controller
     public function store(StoreLeaveRequest $request)
     {
         $leave = LeaveRequest::create([
-            ...$request->validated(),
+            ...$request->safe()->except('supporting_document'),
             'user_id' => $request->user()->id,
             'status' => 'pending',
         ]);
 
         // Handle file attachments
-        if ($request->hasFile('attachment')) {
-            $files = $request->file('attachment');
-            
+        if ($request->hasFile('supporting_document')) {
+            $files = $request->file('supporting_document');
+
             // Handle both single file and array of files
             if (!is_array($files)) {
                 $files = [$files];
             }
-            
+
             foreach ($files as $file) {
                 $path = $file->store('attachments/leave-requests', 'public');
-                
+
                 Attachment::create([
                     'leave_request_id' => $leave->id,
                     'original_name' => $file->getClientOriginalName(),
@@ -157,7 +157,7 @@ class LeaveRequestController extends Controller
         }
 
         $this->notifications->notifyLeaveSubmitted($leave);
-        
+
         // Reload the model with relationships to get fresh data
         $leave = $leave->fresh(['leaveType', 'attachments']);
 
@@ -321,7 +321,7 @@ class LeaveRequestController extends Controller
 
         // Check if user has access to this attachment's leave request
         $leaveRequest = $attachment->leaveRequest;
-        
+
         if (!$leaveRequest) {
             return response()->json([
                 'success' => false,
@@ -339,7 +339,7 @@ class LeaveRequestController extends Controller
 
         // Check if file exists
         $filePath = storage_path('app/public/' . $attachment->path);
-        
+
         if (!file_exists($filePath)) {
             return response()->json([
                 'success' => false,

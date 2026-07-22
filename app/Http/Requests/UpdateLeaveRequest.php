@@ -7,11 +7,7 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateLeaveRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     * Note: Authorization is handled in the controller instead
-     * because route model binding doesn't work in FormRequest::authorize()
-     */
+
     public function authorize(): bool
     {
         // Return true here - actual authorization is in the controller
@@ -22,23 +18,28 @@ class UpdateLeaveRequest extends FormRequest
     {
         $user = $this->user();
         $isTrainerOrAdmin = $user && in_array($user->role, ['trainer', 'admin']);
-        
+
         $rules = [
             'leave_type_id' => ['sometimes', 'required', 'integer', 'exists:leave_types,id'],
             'start_date' => ['sometimes', 'required', 'date'],
             'end_date' => ['sometimes', 'required', 'date', 'after_or_equal:start_date'],
             'reason' => ['sometimes', 'required', 'string', 'max:500'],
         ];
-        
+
         // Allow status and review_note only for trainer/admin
         if ($isTrainerOrAdmin) {
             $rules['status'] = ['sometimes', 'required', 'in:approved,rejected'];
-            $rules['review_note'] = ['sometimes', 'required', 'string', 'min:5', 'max:500'];
+
+            if ($this->input('status') === 'rejected') {
+                $rules['review_note'] = ['required', 'string', 'min:5', 'max:500'];
+            } else {
+                $rules['review_note'] = ['nullable', 'string', 'max:500'];
+            }
         } else {
             // Students can only cancel their own pending requests
             $rules['status'] = ['sometimes', 'required', 'in:cancelled'];
         }
-        
+
         return $rules;
     }
 
@@ -59,7 +60,7 @@ class UpdateLeaveRequest extends FormRequest
             'end_date.date' => 'End date must be a valid date.',
             'end_date.after_or_equal' => 'End date must be on or after the start date.',
         ];
-        
+
         $user = $this->user();
         if ($user && in_array($user->role, ['trainer', 'admin'])) {
             $messages['status.required'] = 'Please select a status (approved or rejected).';
@@ -70,7 +71,7 @@ class UpdateLeaveRequest extends FormRequest
         } else {
             $messages['status.in'] = 'Status must be cancelled.';
         }
-        
+
         return $messages;
     }
 }
