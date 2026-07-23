@@ -8,6 +8,7 @@ use App\Models\Attachment;
 use App\Http\Requests\StoreLeaveRequest;
 use App\Http\Requests\UpdateLeaveRequest;
 use App\Services\NotificationService;
+use App\Events\LeaveRequestCreated;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -158,6 +159,9 @@ class LeaveRequestController extends Controller
         }
 
         $this->notifications->notifyLeaveSubmitted($leave);
+
+        // Broadcast the event to trainers
+        broadcast(new LeaveRequestCreated($leave));
 
         // Reload the model with relationships to get fresh data
         $leave = $leave->fresh(['leaveType', 'attachments']);
