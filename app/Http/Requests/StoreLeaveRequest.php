@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\LeaveType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -22,8 +23,24 @@ class StoreLeaveRequest extends FormRequest
             'start_time' => ['nullable', 'required_with:end_time', 'date_format:H:i'],
             'end_time' => ['nullable', 'required_with:start_time', 'date_format:H:i'],
             'reason' => ['required', 'string', 'min:5', 'max:500'],
-            'attachment' => ['nullable'],
+            'supporting_document' => [
+                $this->selectedLeaveTypeRequiresAttachment() ? 'required' : 'nullable',
+                'file',
+                'mimes:pdf,jpg,jpeg,png,docx',
+                'max:5120',
+            ],
         ];
+    }
+
+    protected function selectedLeaveTypeRequiresAttachment(): bool
+    {
+        $leaveTypeId = $this->input('leave_type_id');
+
+        if (!$leaveTypeId) {
+            return false;
+        }
+
+        return (bool) LeaveType::whereKey($leaveTypeId)->value('requires_attachment');
     }
 
     public function messages(): array

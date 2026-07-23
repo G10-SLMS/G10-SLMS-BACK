@@ -8,7 +8,9 @@ use App\Models\Attachment;
 use App\Http\Requests\StoreLeaveRequest;
 use App\Http\Requests\UpdateLeaveRequest;
 use App\Services\NotificationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class LeaveRequestController extends Controller
 {
@@ -46,6 +48,11 @@ class LeaveRequestController extends Controller
         // Filter by status
         if ($status = $request->query('status')) {
             $query->where('status', $status);
+        }
+
+        // Filter by leave type
+        if ($leaveTypeId = $request->query('leave_type_id')) {
+            $query->where('leave_type_id', $leaveTypeId);
         }
 
         // Filter by start date range (inclusive)
@@ -93,7 +100,10 @@ class LeaveRequestController extends Controller
                 break;
         }
 
-        $leaveRequests = $query->paginate(10);
+        $perPage = (int) $request->query('per_page', 10);
+        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
+
+        $leaveRequests = $query->paginate($perPage);
 
         return response()->json([
             'success' => true,
@@ -118,23 +128,23 @@ class LeaveRequestController extends Controller
     public function store(StoreLeaveRequest $request)
     {
         $leave = LeaveRequest::create([
-            ...$request->validated(),
+            ...$request->safe()->except('supporting_document'),
             'user_id' => $request->user()->id,
             'status' => 'pending',
         ]);
 
         // Handle file attachments
-        if ($request->hasFile('attachment')) {
-            $files = $request->file('attachment');
-            
+        if ($request->hasFile('supporting_document')) {
+            $files = $request->file('supporting_document');
+
             // Handle both single file and array of files
             if (!is_array($files)) {
                 $files = [$files];
             }
-            
+
             foreach ($files as $file) {
                 $path = $file->store('attachments/leave-requests', 'public');
-                
+
                 Attachment::create([
                     'leave_request_id' => $leave->id,
                     'original_name' => $file->getClientOriginalName(),
@@ -148,7 +158,7 @@ class LeaveRequestController extends Controller
         }
 
         $this->notifications->notifyLeaveSubmitted($leave);
-        
+
         // Reload the model with relationships to get fresh data
         $leave = $leave->fresh(['leaveType', 'attachments']);
 
@@ -158,16 +168,13 @@ class LeaveRequestController extends Controller
             'data' => $leave->toArray(),
         ], 201);
     }
-    /**
-     * GET /api/leave-requests/{id}
-     * Trainer/Admin: 
-     */
+
     public function show(Request $request, $id)
     {
         $user = $request->user();
 
         $leaveRequest = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer', 'comments', 'attachments'])->find($id);
-        
+
         if (!$leaveRequest) {
             return response()->json([
                 'success' => false,
@@ -175,7 +182,7 @@ class LeaveRequestController extends Controller
                 'data' => null,
             ], 404);
         }
-        
+
         // Student can only view their own requests
         if ($user->role === 'student' && $leaveRequest->user_id !== $user->id) {
             return response()->json([
@@ -191,11 +198,6 @@ class LeaveRequestController extends Controller
         ]);
     }
 
-    /**
-     * PUT /api/leave-requests/{id}
-     * Student: update own pending request
-     * Trainer/Admin: approve/reject any request
-     */
     public function update(UpdateLeaveRequest $request, LeaveRequest $leaveRequest)
     {
         $user = $request->user();
@@ -233,6 +235,12 @@ class LeaveRequestController extends Controller
                 ? 'Leave request approved successfully.'
                 : 'Leave request rejected successfully.';
 
+            if ($validated['status'] === 'approved') {
+                $this->notifications->notifyLeaveApproved($leaveRequest, $user);
+            } else {
+                $this->notifications->notifyLeaveRejected($leaveRequest, $user);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => $message,
@@ -257,6 +265,8 @@ class LeaveRequestController extends Controller
                 'cancelled_at' => now(),
             ]);
 
+            $this->notifications->notifyLeaveCancelled($leaveRequest);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Leave request cancelled successfully.',
@@ -264,12 +274,42 @@ class LeaveRequestController extends Controller
             ]);
         }
 
+        if ($request->boolean('remove_attachment') && !$request->hasFile('supporting_document')) {
+            foreach ($leaveRequest->attachments as $existing) {
+                Storage::disk('public')->delete($existing->path);
+                $existing->delete();
+            }
+        }
+
+        // Replace/add the supporting document if a new file was uploaded.
+        if ($request->hasFile('supporting_document')) {
+            foreach ($leaveRequest->attachments as $existing) {
+                Storage::disk('public')->delete($existing->path);
+                $existing->delete();
+            }
+
+            $file = $request->file('supporting_document');
+            $path = $file->store('attachments/leave-requests', 'public');
+
+            Attachment::create([
+                'leave_request_id' => $leaveRequest->id,
+                'original_name' => $file->getClientOriginalName(),
+                'path' => $path,
+                'mime_type' => $file->getMimeType(),
+                'size' => $file->getSize(),
+                'uploaded_by' => $user->id,
+                'is_verified' => false,
+            ]);
+        }
+
+        unset($validated['supporting_document'], $validated['remove_attachment']);
+
         $leaveRequest->update($validated);
 
         return response()->json([
             'success' => true,
             'message' => 'Leave request updated successfully.',
-            'data' => $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer']),
+            'data' => $leaveRequest->fresh(['leaveType', 'user.avatar', 'reviewer', 'attachments']),
         ]);
     }
 
@@ -302,17 +342,13 @@ class LeaveRequestController extends Controller
         ], 200);
     }
 
-    /**
-     * Download attachment file
-     * GET /api/attachments/{attachment}/download
-     */
     public function downloadAttachment(Request $request, Attachment $attachment)
     {
         $user = $request->user();
 
         // Check if user has access to this attachment's leave request
         $leaveRequest = $attachment->leaveRequest;
-        
+
         if (!$leaveRequest) {
             return response()->json([
                 'success' => false,
@@ -330,7 +366,7 @@ class LeaveRequestController extends Controller
 
         // Check if file exists
         $filePath = storage_path('app/public/' . $attachment->path);
-        
+
         if (!file_exists($filePath)) {
             return response()->json([
                 'success' => false,

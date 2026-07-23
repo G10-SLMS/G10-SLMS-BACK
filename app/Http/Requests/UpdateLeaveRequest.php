@@ -2,16 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Models\LeaveType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateLeaveRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     * Note: Authorization is handled in the controller instead
-     * because route model binding doesn't work in FormRequest::authorize()
-     */
+
     public function authorize(): bool
     {
         // Return true here - actual authorization is in the controller
@@ -22,24 +19,63 @@ class UpdateLeaveRequest extends FormRequest
     {
         $user = $this->user();
         $isTrainerOrAdmin = $user && in_array($user->role, ['trainer', 'admin']);
-        
+
         $rules = [
             'leave_type_id' => ['sometimes', 'required', 'integer', 'exists:leave_types,id'],
             'start_date' => ['sometimes', 'required', 'date'],
             'end_date' => ['sometimes', 'required', 'date', 'after_or_equal:start_date'],
             'reason' => ['sometimes', 'required', 'string', 'max:500'],
         ];
-        
+
         // Allow status and review_note only for trainer/admin
         if ($isTrainerOrAdmin) {
             $rules['status'] = ['sometimes', 'required', 'in:approved,rejected'];
-            $rules['review_note'] = ['sometimes', 'required', 'string', 'min:5', 'max:500'];
+
+            if ($this->input('status') === 'rejected') {
+                $rules['review_note'] = ['required', 'string', 'min:5', 'max:500'];
+            } else {
+                $rules['review_note'] = ['nullable', 'string', 'max:500'];
+            }
         } else {
-            // Students can only cancel their own pending requests
+            
             $rules['status'] = ['sometimes', 'required', 'in:cancelled'];
+            $rules['supporting_document'] = [
+                $this->attachmentStillMissingAfterSave() ? 'required' : 'nullable',
+                'file',
+                'mimes:pdf,jpg,jpeg,png,docx',
+                'max:5120',
+            ];
+            $rules['remove_attachment'] = ['sometimes', 'boolean'];
         }
-        
+
         return $rules;
+    }
+
+    protected function attachmentStillMissingAfterSave(): bool
+    {
+        // A new file is being uploaded — requirement satisfied regardless.
+        if ($this->hasFile('supporting_document')) {
+            return false;
+        }
+
+        $leaveTypeId = $this->input('leave_type_id') ?? $this->route('leaveRequest')?->leave_type_id;
+
+        $requiresAttachment = $leaveTypeId
+            ? (bool) LeaveType::whereKey($leaveTypeId)->value('requires_attachment')
+            : false;
+
+        if (!$requiresAttachment) {
+            return false;
+        }
+
+        // Explicitly removing the existing document with nothing to replace it.
+        if ($this->boolean('remove_attachment')) {
+            return true;
+        }
+
+        $leaveRequest = $this->route('leaveRequest');
+
+        return !($leaveRequest && $leaveRequest->attachments()->exists());
     }
 
     public function messages(): array
@@ -59,7 +95,7 @@ class UpdateLeaveRequest extends FormRequest
             'end_date.date' => 'End date must be a valid date.',
             'end_date.after_or_equal' => 'End date must be on or after the start date.',
         ];
-        
+
         $user = $this->user();
         if ($user && in_array($user->role, ['trainer', 'admin'])) {
             $messages['status.required'] = 'Please select a status (approved or rejected).';
@@ -69,8 +105,12 @@ class UpdateLeaveRequest extends FormRequest
             $messages['review_note.max'] = 'Review note must not exceed 500 characters.';
         } else {
             $messages['status.in'] = 'Status must be cancelled.';
+            $messages['supporting_document.required'] = 'This leave type requires a supporting document.';
+            $messages['supporting_document.file'] = 'Supporting document must be a valid file.';
+            $messages['supporting_document.mimes'] = 'Supporting document must be a PDF, DOCX, JPG, or PNG file.';
+            $messages['supporting_document.max'] = 'Supporting document must not exceed 5MB.';
         }
-        
+
         return $messages;
     }
 }
