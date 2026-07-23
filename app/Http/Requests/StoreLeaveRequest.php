@@ -4,8 +4,8 @@ namespace App\Http\Requests;
 
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreLeaveRequest extends FormRequest
@@ -21,15 +21,14 @@ class StoreLeaveRequest extends FormRequest
             'leave_type_id' => ['required', 'integer', 'exists:leave_types,id'],
             'start_date' => ['required', 'date', 'after_or_equal:today'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'start_time' => ['nullable', 'required_with:end_time', 'date_format:H:i'],
-            'end_time' => ['nullable', 'required_with:start_time', 'date_format:H:i'],
-            'reason' => ['required', 'string', 'min:5', 'max:500'],
             'duration_type' => ['required', Rule::in(LeaveRequest::DURATION_TYPES)],
+
             'start_time' => [
                 'nullable',
                 'date_format:H:i',
                 Rule::requiredIf(fn () => $this->input('duration_type') === 'hourly'),
             ],
+
             'end_time' => [
                 'nullable',
                 'date_format:H:i',
@@ -38,6 +37,9 @@ class StoreLeaveRequest extends FormRequest
                     $this->validateHourlyTimeRange($value, $fail);
                 },
             ],
+
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+
             'supporting_document' => [
                 $this->selectedLeaveTypeRequiresAttachment() ? 'required' : 'nullable',
                 'file',
@@ -71,7 +73,7 @@ class StoreLeaveRequest extends FormRequest
                 'Duration must be between %s and %s hours, in increments of %s.',
                 LeaveRequest::MIN_HOURLY_DURATION,
                 LeaveRequest::MAX_HOURLY_DURATION,
-                LeaveRequest::HOURLY_DURATION_STEP,
+                LeaveRequest::HOURLY_DURATION_STEP
             ));
         }
     }
@@ -94,6 +96,7 @@ class StoreLeaveRequest extends FormRequest
             'leave_type_id.exists' => 'Selected leave type does not exist.',
 
             'reason.required' => 'Please provide a reason for your leave request.',
+            'reason.min' => 'Reason must be at least 5 characters.',
             'reason.max' => 'Reason must not exceed 500 characters.',
 
             'start_date.required' => 'Start date is required.',
@@ -104,29 +107,30 @@ class StoreLeaveRequest extends FormRequest
             'end_date.date' => 'End date must be a valid date.',
             'end_date.after_or_equal' => 'End date must be on or after the start date.',
 
-            // Time : corresponsding messages
-            // Start time
-            'start_time.required_with' => 'Start time is required when an end time is provided.',
+            'start_time.required' => 'Start time is required for hourly leave.',
             'start_time.date_format' => 'Start time must be in the format HH:MM.',
-            
-            // End time 
-            'end_time.required_with' => 'End time is required when a start time is provided.',
+
+            'end_time.required' => 'End time is required for hourly leave.',
             'end_time.date_format' => 'End time must be in the format HH:MM.',
-            'end_time.after' => 'End time must be later than the start time.',
+
+            'supporting_document.required' => 'Supporting document is required.',
+            'supporting_document.mimes' => 'The file must be a PDF, JPG, JPEG, PNG, or DOCX.',
+            'supporting_document.max' => 'The file size must not exceed 5 MB.',
         ];
     }
 
-    public function withValidator(Validator $validator): void{
+    public function withValidator(Validator $validator): void
+    {
         $validator->after(function ($validator) {
             if (
-                $this->start_date === $this->end_date &&
-                $this->start_time &&
-                $this->end_time &&
-                strtotime($this->end_time) <= strtotime($this->start_time)
+                $this->input('duration_type') === 'hourly' &&
+                $this->filled('start_time') &&
+                $this->filled('end_time') &&
+                strtotime($this->input('end_time')) <= strtotime($this->input('start_time'))
             ) {
                 $validator->errors()->add(
                     'end_time',
-                    'End time must be later than the start time for a same-day leave.'
+                    'End time must be later than the start time.'
                 );
             }
         });
