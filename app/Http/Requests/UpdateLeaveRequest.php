@@ -39,7 +39,7 @@ class UpdateLeaveRequest extends FormRequest
         } else {
             
             $rules['status'] = ['sometimes', 'required', 'in:cancelled'];
-            $rules['supporting_document'] = [
+            $rules['attachment'] = [
                 $this->attachmentStillMissingAfterSave() ? 'required' : 'nullable',
                 'file',
                 'mimes:pdf,jpg,jpeg,png,docx',
@@ -54,7 +54,7 @@ class UpdateLeaveRequest extends FormRequest
     protected function attachmentStillMissingAfterSave(): bool
     {
         // A new file is being uploaded — requirement satisfied regardless.
-        if ($this->hasFile('supporting_document')) {
+        if ($this->hasFile('attachment')) {
             return false;
         }
 
@@ -105,10 +105,10 @@ class UpdateLeaveRequest extends FormRequest
             $messages['review_note.max'] = 'Review note must not exceed 500 characters.';
         } else {
             $messages['status.in'] = 'Status must be cancelled.';
-            $messages['supporting_document.required'] = 'This leave type requires a supporting document.';
-            $messages['supporting_document.file'] = 'Supporting document must be a valid file.';
-            $messages['supporting_document.mimes'] = 'Supporting document must be a PDF, DOCX, JPG, or PNG file.';
-            $messages['supporting_document.max'] = 'Supporting document must not exceed 5MB.';
+            $messages['attachment.required'] = 'This leave type requires a supporting document.';
+            $messages['attachment.file'] = 'Supporting document must be a valid file.';
+            $messages['attachment.mimes'] = 'Supporting document must be a PDF, DOCX, JPG, or PNG file.';
+            $messages['attachment.max'] = 'Supporting document must not exceed 5MB.';
         }
 
         return $messages;

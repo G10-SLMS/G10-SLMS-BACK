@@ -23,7 +23,7 @@ class StoreLeaveRequest extends FormRequest
             'start_time' => ['nullable', 'required_with:end_time', 'date_format:H:i'],
             'end_time' => ['nullable', 'required_with:start_time', 'date_format:H:i'],
             'reason' => ['required', 'string', 'min:5', 'max:500'],
-            'supporting_document' => [
+            'attachment' => [
                 $this->selectedLeaveTypeRequiresAttachment() ? 'required' : 'nullable',
                 'file',
                 'mimes:pdf,jpg,jpeg,png,docx',

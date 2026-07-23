@@ -129,14 +129,14 @@ class LeaveRequestController extends Controller
     public function store(StoreLeaveRequest $request)
     {
         $leave = LeaveRequest::create([
-            ...$request->safe()->except('supporting_document'),
+            ...$request->safe()->except('attachment'),
             'user_id' => $request->user()->id,
             'status' => 'pending',
         ]);
 
         // Handle file attachments
-        if ($request->hasFile('supporting_document')) {
-            $files = $request->file('supporting_document');
+        if ($request->hasFile('attachment')) {
+            $files = $request->file('attachment');
 
             // Handle both single file and array of files
             if (!is_array($files)) {
@@ -160,8 +160,14 @@ class LeaveRequestController extends Controller
 
         $this->notifications->notifyLeaveSubmitted($leave);
 
-        // Broadcast the event to trainers
-        broadcast(new LeaveRequestCreated($leave));
+        // Get the notifications that were just created
+        $notifications = \App\Models\Notification::where('leave_request_id', $leave->id)
+            ->whereIn('type', ['leave_submitted'])
+            ->get()
+            ->all();
+
+        // Broadcast the event to trainers and admins with notification data
+        broadcast(new LeaveRequestCreated($leave, $notifications));
 
         // Reload the model with relationships to get fresh data
         $leave = $leave->fresh(['leaveType', 'attachments']);
@@ -278,7 +284,7 @@ class LeaveRequestController extends Controller
             ]);
         }
 
-        if ($request->boolean('remove_attachment') && !$request->hasFile('supporting_document')) {
+        if ($request->boolean('remove_attachment') && !$request->hasFile('attachment')) {
             foreach ($leaveRequest->attachments as $existing) {
                 Storage::disk('public')->delete($existing->path);
                 $existing->delete();
@@ -286,13 +292,13 @@ class LeaveRequestController extends Controller
         }
 
         // Replace/add the supporting document if a new file was uploaded.
-        if ($request->hasFile('supporting_document')) {
+        if ($request->hasFile('attachment')) {
             foreach ($leaveRequest->attachments as $existing) {
                 Storage::disk('public')->delete($existing->path);
                 $existing->delete();
             }
 
-            $file = $request->file('supporting_document');
+            $file = $request->file('attachment');
             $path = $file->store('attachments/leave-requests', 'public');
 
             Attachment::create([
@@ -306,7 +312,7 @@ class LeaveRequestController extends Controller
             ]);
         }
 
-        unset($validated['supporting_document'], $validated['remove_attachment']);
+        unset($validated['attachment'], $validated['remove_attachment']);
 
         $leaveRequest->update($validated);
 

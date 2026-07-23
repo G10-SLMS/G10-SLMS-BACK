@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Route;
@@ -10,6 +11,11 @@ use Illuminate\Auth\Events\PasswordReset;
 Route::get('/', function () {
     return view('welcome');
 });
+
+// WebSocket broadcasting authentication route
+Route::post('/broadcasting/auth', function (Request $request) {
+    return Broadcast::auth($request);
+})->middleware('auth:sanctum');
 
 // Password Reset Routes
 Route::get('/forgot-password', function () {

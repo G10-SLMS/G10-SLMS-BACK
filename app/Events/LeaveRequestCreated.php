@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use App\Models\LeaveRequest;
+use App\Models\Notification;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -23,11 +24,19 @@ class LeaveRequestCreated implements ShouldBroadcast
     public $leaveRequest;
 
     /**
+     * The notifications created for this leave request.
+     *
+     * @var array<int, Notification>
+     */
+    public array $notifications;
+
+    /**
      * Create a new event instance.
      */
-    public function __construct(LeaveRequest $leaveRequest)
+    public function __construct(LeaveRequest $leaveRequest, array $notifications = [])
     {
         $this->leaveRequest = $leaveRequest->load(['user', 'leaveType']);
+        $this->notifications = $notifications;
     }
 
     /**
@@ -58,19 +67,40 @@ class LeaveRequestCreated implements ShouldBroadcast
      */
     public function broadcastWith(): array
     {
+        // If notifications are provided, broadcast the first one (for trainers/admins)
+        if (!empty($this->notifications)) {
+            $notification = $this->notifications[0];
+            
+            return [
+                'id' => $notification->id,
+                'type' => $notification->type,
+                'title' => $notification->title,
+                'message' => $notification->message,
+                'leave_request_id' => $notification->leave_request_id,
+                'actor' => $notification->creator ? [
+                    'id' => $notification->creator->id,
+                    'name' => $notification->creator->name,
+                    'avatar_id' => $notification->creator->avatar_id,
+                ] : null,
+                'read' => !$notification->is_read,
+                'created_at' => $notification->created_at->toIso8601String(),
+            ];
+        }
+
+        // Fallback to leave request data if no notifications provided
         return [
             'id' => $this->leaveRequest->id,
-            'user_id' => $this->leaveRequest->user_id,
-            'student_name' => $this->leaveRequest->user->name,
-            'student_id' => $this->leaveRequest->user->student_id,
-            'leave_type' => $this->leaveRequest->leaveType->name,
-            'start_date' => $this->leaveRequest->start_date->format('Y-m-d'),
-            'end_date' => $this->leaveRequest->end_date->format('Y-m-d'),
-            'start_time' => $this->leaveRequest->start_time,
-            'end_time' => $this->leaveRequest->end_time,
-            'reason' => $this->leaveRequest->reason,
-            'status' => $this->leaveRequest->status,
-            'created_at' => $this->leaveRequest->created_at->toIso8601String(),
+            'type' => 'leave_submitted',
+            'title' => 'New leave request',
+            'message' => "{$this->leaveRequest->user->name} submitted a leave request for review.",
+            'leave_request_id' => $this->leaveRequest->id,
+            'actor' => [
+                'id' => $this->leaveRequest->user->id,
+                'name' => $this->leaveRequest->user->name,
+                'avatar_id' => $this->leaveRequest->user->avatar_id,
+            ],
+            'read' => false,
+            'created_at' => now()->toIso8601String(),
         ];
     }
 
