@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -23,6 +24,20 @@ class StoreLeaveRequest extends FormRequest
             'start_time' => ['nullable', 'required_with:end_time', 'date_format:H:i'],
             'end_time' => ['nullable', 'required_with:start_time', 'date_format:H:i'],
             'reason' => ['required', 'string', 'min:5', 'max:500'],
+            'duration_type' => ['required', Rule::in(LeaveRequest::DURATION_TYPES)],
+            'start_time' => [
+                'nullable',
+                'date_format:H:i',
+                Rule::requiredIf(fn () => $this->input('duration_type') === 'hourly'),
+            ],
+            'end_time' => [
+                'nullable',
+                'date_format:H:i',
+                Rule::requiredIf(fn () => $this->input('duration_type') === 'hourly'),
+                function ($attribute, $value, $fail) {
+                    $this->validateHourlyTimeRange($value, $fail);
+                },
+            ],
             'supporting_document' => [
                 $this->selectedLeaveTypeRequiresAttachment() ? 'required' : 'nullable',
                 'file',
@@ -30,6 +45,35 @@ class StoreLeaveRequest extends FormRequest
                 'max:5120',
             ],
         ];
+    }
+
+    protected function validateHourlyTimeRange($endTime, $fail): void
+    {
+        if ($this->input('duration_type') !== 'hourly') {
+            return;
+        }
+
+        $startTime = $this->input('start_time');
+
+        if (!$startTime || !$endTime) {
+            return;
+        }
+
+        $hours = LeaveRequest::calculateHoursFromTimes($startTime, $endTime);
+
+        if ($hours <= 0) {
+            $fail('End time must be after start time.');
+            return;
+        }
+
+        if (!LeaveRequest::isValidHourlyDuration($hours)) {
+            $fail(sprintf(
+                'Duration must be between %s and %s hours, in increments of %s.',
+                LeaveRequest::MIN_HOURLY_DURATION,
+                LeaveRequest::MAX_HOURLY_DURATION,
+                LeaveRequest::HOURLY_DURATION_STEP,
+            ));
+        }
     }
 
     protected function selectedLeaveTypeRequiresAttachment(): bool

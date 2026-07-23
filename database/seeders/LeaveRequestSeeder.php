@@ -13,9 +13,6 @@ class LeaveRequestSeeder extends Seeder
 {
     use WithoutModelEvents;
 
-    /**
-     * Depends on UserSeeder and LeaveTypeSeeder having already run.
-     */
     public function run(): void
     {
         $students = User::where('role', 'student')->get();
@@ -38,6 +35,8 @@ class LeaveRequestSeeder extends Seeder
             $status = $statuses[$index % count($statuses)];
             $start = Carbon::now()->addDays(($index + 1) * 3);
 
+            $isHourly = $index % 3 === 0;
+
             LeaveRequest::updateOrCreate(
                 [
                     'user_id' => $student->id,
@@ -45,8 +44,12 @@ class LeaveRequestSeeder extends Seeder
                     'start_date' => $start->toDateString(),
                 ],
                 [
-                    'end_date' => $start->copy()->addDays(1)->toDateString(),
+                    'end_date' => $isHourly ? $start->toDateString() : $start->copy()->addDays(1)->toDateString(),
                     'reason' => "Sample leave request #{$index} for {$student->name}.",
+                    'duration_type' => $isHourly ? 'hourly' : 'full_day',
+                    'duration_hours' => $isHourly
+                        ? collect([1, 1.5, 2, 3, 4])->random()
+                        : null,
                     'status' => $status,
                     'reviewed_by' => $status === 'pending' ? null : $reviewer?->id,
                     'review_note' => $status === 'rejected' ? 'Insufficient notice given.' : null,
