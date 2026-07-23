@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\LeaveType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreLeaveRequest extends FormRequest
 {
@@ -19,6 +20,8 @@ class StoreLeaveRequest extends FormRequest
             'leave_type_id' => ['required', 'integer', 'exists:leave_types,id'],
             'start_date' => ['required', 'date', 'after_or_equal:today'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'start_time' => ['nullable', 'required_with:end_time', 'date_format:H:i'],
+            'end_time' => ['nullable', 'required_with:start_time', 'date_format:H:i'],
             'reason' => ['required', 'string', 'min:5', 'max:500'],
             'supporting_document' => [
                 $this->selectedLeaveTypeRequiresAttachment() ? 'required' : 'nullable',
@@ -57,10 +60,31 @@ class StoreLeaveRequest extends FormRequest
             'end_date.date' => 'End date must be a valid date.',
             'end_date.after_or_equal' => 'End date must be on or after the start date.',
 
-            'supporting_document.required' => 'This leave type requires a supporting document.',
-            'supporting_document.file' => 'Supporting document must be a valid file.',
-            'supporting_document.mimes' => 'Supporting document must be a PDF, DOCX, JPG, or PNG file.',
-            'supporting_document.max' => 'Supporting document must not exceed 5MB.',
+            // Time : corresponsding messages
+            // Start time
+            'start_time.required_with' => 'Start time is required when an end time is provided.',
+            'start_time.date_format' => 'Start time must be in the format HH:MM.',
+            
+            // End time 
+            'end_time.required_with' => 'End time is required when a start time is provided.',
+            'end_time.date_format' => 'End time must be in the format HH:MM.',
+            'end_time.after' => 'End time must be later than the start time.',
         ];
+    }
+
+    public function withValidator(Validator $validator): void{
+        $validator->after(function ($validator) {
+            if (
+                $this->start_date === $this->end_date &&
+                $this->start_time &&
+                $this->end_time &&
+                strtotime($this->end_time) <= strtotime($this->start_time)
+            ) {
+                $validator->errors()->add(
+                    'end_time',
+                    'End time must be later than the start time for a same-day leave.'
+                );
+            }
+        });
     }
 }
