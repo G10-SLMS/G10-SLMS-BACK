@@ -7,6 +7,7 @@ use App\Models\LeaveRequest;
 use App\Models\Attachment;
 use App\Http\Requests\StoreLeaveRequest;
 use App\Http\Requests\UpdateLeaveRequest;
+use App\Services\LeaveService;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +15,10 @@ use Illuminate\Support\Facades\Storage;
 
 class LeaveRequestController extends Controller
 {
-    public function __construct(protected NotificationService $notifications) {}
+    public function __construct(
+        protected NotificationService $notifications,
+        protected LeaveService $leaveService,
+    ) {}
 
     public function index(Request $request)
     {
@@ -127,8 +131,12 @@ class LeaveRequestController extends Controller
 
     public function store(StoreLeaveRequest $request)
     {
+        $data = $this->leaveService->normalizeDuration(
+            $request->safe()->except('supporting_document'),
+        );
+
         $leave = LeaveRequest::create([
-            ...$request->safe()->except('supporting_document'),
+            ...$data,
             'user_id' => $request->user()->id,
             'status' => 'pending',
         ]);
@@ -303,6 +311,15 @@ class LeaveRequestController extends Controller
         }
 
         unset($validated['supporting_document'], $validated['remove_attachment']);
+
+        $mergedForDuration = array_merge([
+            'duration_type' => $leaveRequest->duration_type,
+            'start_date' => $leaveRequest->start_date?->toDateString(),
+            'start_time' => $leaveRequest->start_time,
+            'end_time' => $leaveRequest->end_time,
+        ], $validated);
+
+        $validated = array_merge($validated, $this->leaveService->normalizeDuration($mergedForDuration));
 
         $leaveRequest->update($validated);
 

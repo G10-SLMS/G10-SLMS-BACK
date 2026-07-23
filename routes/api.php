@@ -73,6 +73,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Shared: Student/Trainer/Admin
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
+    Route::get('/leave-requests/stats', [LeaveRequestController::class, 'stats']);
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show']);
 
     // Download attachment

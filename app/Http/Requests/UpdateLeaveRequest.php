@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateLeaveRequest extends FormRequest
 {
@@ -23,8 +25,71 @@ class UpdateLeaveRequest extends FormRequest
         $rules = [
             'leave_type_id' => ['sometimes', 'required', 'integer', 'exists:leave_types,id'],
             'start_date' => ['sometimes', 'required', 'date'],
-            'end_date' => ['sometimes', 'required', 'date', 'after_or_equal:start_date'],
+            'end_date' => [
+                'sometimes',
+                'required',
+                'date',
+                'after_or_equal:start_date',
+                function ($attribute, $value, $fail) {
+                    $durationType = $this->input('duration_type', $this->route('leaveRequest')?->duration_type);
+
+                    if ($durationType === 'hourly') {
+                        $startDate = $this->input('start_date', $this->route('leaveRequest')?->start_date?->toDateString());
+                        if ($value !== $startDate) {
+                            $fail('Hourly leave requests must start and end on the same date.');
+                        }
+                    }
+                },
+            ],
             'reason' => ['sometimes', 'required', 'string', 'max:500'],
+            'duration_type' => ['sometimes', 'required', Rule::in(LeaveRequest::DURATION_TYPES)],
+            'start_time' => [
+                'nullable',
+                'date_format:H:i',
+                function ($attribute, $value, $fail) {
+                    $durationType = $this->input('duration_type', $this->route('leaveRequest')?->duration_type);
+                    if ($durationType === 'hourly' && ($value === null || $value === '')) {
+                        $fail('Please select a start time for your hourly leave.');
+                    }
+                },
+            ],
+            'end_time' => [
+                'nullable',
+                'date_format:H:i',
+                function ($attribute, $value, $fail) {
+                    $durationType = $this->input('duration_type', $this->route('leaveRequest')?->duration_type);
+
+                    if ($durationType !== 'hourly') {
+                        return;
+                    }
+
+                    if ($value === null || $value === '') {
+                        $fail('Please select an end time for your hourly leave.');
+                        return;
+                    }
+
+                    $startTime = $this->input('start_time', $this->route('leaveRequest')?->start_time);
+                    if (!$startTime) {
+                        return;
+                    }
+
+                    $hours = LeaveRequest::calculateHoursFromTimes($startTime, $value);
+
+                    if ($hours <= 0) {
+                        $fail('End time must be after start time.');
+                        return;
+                    }
+
+                    if (!LeaveRequest::isValidHourlyDuration($hours)) {
+                        $fail(sprintf(
+                            'Duration must be between %s and %s hours, in increments of %s.',
+                            LeaveRequest::MIN_HOURLY_DURATION,
+                            LeaveRequest::MAX_HOURLY_DURATION,
+                            LeaveRequest::HOURLY_DURATION_STEP,
+                        ));
+                    }
+                },
+            ],
         ];
 
         // Allow status and review_note only for trainer/admin
@@ -37,7 +102,7 @@ class UpdateLeaveRequest extends FormRequest
                 $rules['review_note'] = ['nullable', 'string', 'max:500'];
             }
         } else {
-            
+
             $rules['status'] = ['sometimes', 'required', 'in:cancelled'];
             $rules['supporting_document'] = [
                 $this->attachmentStillMissingAfterSave() ? 'required' : 'nullable',
@@ -94,6 +159,12 @@ class UpdateLeaveRequest extends FormRequest
             'end_date.required' => 'End date is required.',
             'end_date.date' => 'End date must be a valid date.',
             'end_date.after_or_equal' => 'End date must be on or after the start date.',
+
+            'duration_type.required' => 'Please select a duration type.',
+            'duration_type.in' => 'Duration type must be either full day or hourly.',
+
+            'start_time.date_format' => 'Start time must be a valid time (HH:MM).',
+            'end_time.date_format' => 'End time must be a valid time (HH:MM).',
         ];
 
         $user = $this->user();
