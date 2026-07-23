@@ -75,6 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Shared: Student/Trainer/Admin
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
+    Route::get('/leave-requests/stats', [LeaveRequestController::class, 'stats']);
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show']);
 
     // Download attachment
@@ -108,9 +109,3 @@ Route::middleware(['auth:sanctum', 'role:admin,student'])->group(function () {
     Route::put('/leave-types/{leaveType}', [LeaveTypeController::class, 'update']);
     Route::delete('/leave-types/{leaveType}', [LeaveTypeController::class, 'destroy']);
 });
-
-// Route::middleware('auth:sanctum')->group(function () {
-//     // ... existing routes ...
-
-//     Route::get('/calendar-events', [CalendarController::class, 'index']);
-// });

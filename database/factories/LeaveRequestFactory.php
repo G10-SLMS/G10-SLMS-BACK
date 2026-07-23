@@ -7,16 +7,9 @@ use App\Models\LeaveType;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-/**
- * @extends Factory<LeaveRequest>
- */
 class LeaveRequestFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
+
     public function definition(): array
     {
         return [
@@ -25,7 +18,23 @@ class LeaveRequestFactory extends Factory
             'start_date' => fake()->date(),
             'end_date' => fake()->date(),
             'reason' => fake()->sentence(),
+            'duration_type' => 'full_day',
+            'duration_hours' => null,
             'status' => 'pending',
         ];
+    }
+
+    public function hourly(?float $hours = null): static
+    {
+        return $this->state(function () use ($hours) {
+            $date = fake()->date();
+
+            return [
+                'start_date' => $date,
+                'end_date' => $date,
+                'duration_type' => 'hourly',
+                'duration_hours' => $hours ?? fake()->randomFloat(1, LeaveRequest::MIN_HOURLY_DURATION, LeaveRequest::MAX_HOURLY_DURATION),
+            ];
+        });
     }
 }
