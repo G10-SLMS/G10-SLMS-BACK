@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\LeaveRequest;
+use App\Models\LeaveRequestApproval;
 use App\Models\Attachment;
 use App\Http\Requests\StoreLeaveRequest;
 use App\Http\Requests\UpdateLeaveRequest;
+use App\Http\Resources\LeaveRequestApprovalResource;
 use App\Services\LeaveService;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
@@ -20,9 +22,27 @@ class LeaveRequestController extends Controller
         protected LeaveService $leaveService,
     ) {}
 
+    /**
+     * Serialize a leave request, replacing the raw approval-history relation
+     * (when loaded) with the clean approver/status/reason/action_at shape
+     * the frontend expects.
+     */
+    private function formatLeaveRequest(LeaveRequest $leaveRequest): array
+    {
+        $data = $leaveRequest->toArray();
+
+        if ($leaveRequest->relationLoaded('approvalHistory')) {
+            $data['approval_history'] = LeaveRequestApprovalResource::collection(
+                $leaveRequest->approvalHistory
+            )->toArray(request());
+        }
+
+        return $data;
+    }
+
     public function index(Request $request)
     {
-        $query = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer', 'attachments']);
+        $query = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer', 'attachments', 'approvalHistory.approver']);
 
         // Students can only see their own requests
         if ($request->user()->role === 'student') {
@@ -129,7 +149,7 @@ class LeaveRequestController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Leave requests retrieved successfully.',
-            'data' => $leaveRequests->items(),
+            'data' => array_map(fn (LeaveRequest $item) => $this->formatLeaveRequest($item), $leaveRequests->items()),
             'meta' => [
                 'current_page' => $leaveRequests->currentPage(),
                 'last_page' => $leaveRequests->lastPage(),
@@ -226,7 +246,7 @@ class LeaveRequestController extends Controller
     {
         $user = $request->user();
 
-        $leaveRequest = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer', 'comments', 'attachments'])->find($id);
+        $leaveRequest = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer', 'comments', 'attachments', 'approvalHistory.approver'])->find($id);
 
         if (!$leaveRequest) {
             return response()->json([
@@ -247,7 +267,7 @@ class LeaveRequestController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Leave request retrieved successfully.',
-            'data' => $leaveRequest,
+            'data' => $this->formatLeaveRequest($leaveRequest),
         ]);
     }
 
@@ -284,6 +304,13 @@ class LeaveRequestController extends Controller
                 'review_note' => $validated['review_note'] ?? null,
             ]);
 
+            LeaveRequestApproval::record(
+                $leaveRequest,
+                $user,
+                $validated['status'],
+                $validated['review_note'] ?? null,
+            );
+
             $message = $validated['status'] === 'approved'
                 ? 'Leave request approved successfully.'
                 : 'Leave request rejected successfully.';
@@ -297,7 +324,9 @@ class LeaveRequestController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $message,
-                'data' => $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer']),
+                'data' => $this->formatLeaveRequest(
+                    $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer', 'approvalHistory.approver'])
+                ),
             ]);
         }
 
