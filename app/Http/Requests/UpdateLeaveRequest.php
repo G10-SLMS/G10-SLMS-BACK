@@ -20,7 +20,7 @@ class UpdateLeaveRequest extends FormRequest
     public function rules(): array
     {
         $user = $this->user();
-        $isTrainerOrAdmin = $user && in_array($user->role, ['trainer', 'admin']);
+        $isEducatorOrAdmin = $user && in_array($user->role, ['educator', 'admin']);
 
         $rules = [
             'leave_type_id' => ['sometimes', 'required', 'integer', 'exists:leave_types,id'],
@@ -92,8 +92,8 @@ class UpdateLeaveRequest extends FormRequest
             ],
         ];
 
-        // Allow status and review_note only for trainer/admin
-        if ($isTrainerOrAdmin) {
+        // Allow status and review_note only for educator/admin
+        if ($isEducatorOrAdmin) {
             $rules['status'] = ['sometimes', 'required', 'in:approved,rejected'];
 
             if ($this->input('status') === 'rejected') {
@@ -168,7 +168,7 @@ class UpdateLeaveRequest extends FormRequest
         ];
 
         $user = $this->user();
-        if ($user && in_array($user->role, ['trainer', 'admin'])) {
+        if ($user && in_array($user->role, ['educator', 'admin'])) {
             $messages['status.required'] = 'Please select a status (approved or rejected).';
             $messages['status.in'] = 'Status must be either approved or rejected.';
             $messages['review_note.required'] = 'Please provide a review note.';

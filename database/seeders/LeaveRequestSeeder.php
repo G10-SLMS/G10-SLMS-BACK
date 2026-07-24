@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\LeaveRequest;
+use App\Models\LeaveRequestApproval;
 use App\Models\LeaveType;
 use App\Models\User;
 use Carbon\Carbon;
@@ -28,8 +29,8 @@ class LeaveRequestSeeder extends Seeder
         $statuses = ['pending', 'approved', 'rejected'];
 
         foreach ($students as $index => $student) {
-            $reviewer = $student->trainer_id
-                ? User::find($student->trainer_id)
+            $reviewer = $student->educator_id
+                ? User::find($student->educator_id)
                 : User::where('role', 'admin')->first();
 
             $status = $statuses[$index % count($statuses)];
@@ -37,7 +38,7 @@ class LeaveRequestSeeder extends Seeder
 
             $isHourly = $index % 3 === 0;
 
-            LeaveRequest::updateOrCreate(
+            $leaveRequest = LeaveRequest::updateOrCreate(
                 [
                     'user_id' => $student->id,
                     'leave_type_id' => $leaveTypes->random()->id,
@@ -56,6 +57,19 @@ class LeaveRequestSeeder extends Seeder
                     'reviewed_at' => $status === 'pending' ? null : now(),
                 ]
             );
+
+            if ($status !== 'pending' && $reviewer) {
+                LeaveRequestApproval::updateOrCreate(
+                    ['leave_request_id' => $leaveRequest->id, 'approver_id' => $reviewer->id],
+                    [
+                        'approver_name' => $reviewer->name,
+                        'approver_role' => $reviewer->role,
+                        'status' => $status,
+                        'reason' => $status === 'rejected' ? 'Insufficient notice given.' : null,
+                        'action_at' => $leaveRequest->reviewed_at ?? now(),
+                    ]
+                );
+            }
         }
     }
 }

@@ -18,9 +18,9 @@ class MentionParserServiceTest extends TestCase
             'email' => 'john@example.com',
         ]);
 
-        $trainer = User::factory()->create([
-            'name' => 'Trainer 01',
-            'email' => 'trainer01@example.com',
+        $educator = User::factory()->create([
+            'name' => 'Educator 01',
+            'email' => 'educator01@example.com',
         ]);
 
         $admin = User::factory()->create([
@@ -31,12 +31,12 @@ class MentionParserServiceTest extends TestCase
         $service = new MentionParserService();
 
         $mentionedUserIds = $service->extractUserIds(
-            'Please review [**@john**](https://github.com/john), [**@trainer01**](https://github.com/trainer01), @admin, and @ghost.'
+            'Please review [**@john**](https://github.com/john), [**@educator01**](https://github.com/educator01), @admin, and @ghost.'
         );
 
         $this->assertSame([
             $john->id,
-            $trainer->id,
+            $educator->id,
             $admin->id,
         ], $mentionedUserIds);
     }

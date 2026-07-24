@@ -80,6 +80,11 @@ class LeaveRequest extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    public function approvalHistory(): HasMany
+    {
+        return $this->hasMany(LeaveRequestApproval::class)->orderByDesc('action_at');
+    }
+
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class);
