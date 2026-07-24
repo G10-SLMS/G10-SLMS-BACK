@@ -14,19 +14,19 @@ class LeaveRequestReviewTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_trainer_can_approve_a_pending_leave_request(): void
+    public function test_educator_can_approve_a_pending_leave_request(): void
     {
         $student = User::factory()->create([
             'role' => 'student',
         ]);
 
-        $trainer = User::factory()->create([
-            'role' => 'trainer',
+        $educator = User::factory()->create([
+            'role' => 'educator',
         ]);
 
         $leaveRequest = $this->makePendingLeaveRequest($student);
 
-        Sanctum::actingAs($trainer);
+        Sanctum::actingAs($educator);
 
         $response = $this->patchJson(route('leave-requests.approve', $leaveRequest), [
             'comment' => 'Approved after checking the timetable.',
@@ -36,32 +36,32 @@ class LeaveRequestReviewTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('message', 'Leave request approved successfully.')
             ->assertJsonPath('data.status', 'approved')
-            ->assertJsonPath('data.reviewed_by', $trainer->id)
+            ->assertJsonPath('data.reviewed_by', $educator->id)
             ->assertJsonPath('data.review_note', 'Approved after checking the timetable.')
             ->assertJsonPath('data.comment', 'Approved after checking the timetable.')
-            ->assertJsonPath('data.reviewer.id', $trainer->id);
+            ->assertJsonPath('data.reviewer.id', $educator->id);
 
         $leaveRequest->refresh();
 
         $this->assertSame('approved', $leaveRequest->status);
-        $this->assertSame($trainer->id, $leaveRequest->reviewed_by);
+        $this->assertSame($educator->id, $leaveRequest->reviewed_by);
         $this->assertNotNull($leaveRequest->reviewed_at);
         $this->assertSame('Approved after checking the timetable.', $leaveRequest->review_note);
     }
 
-    public function test_trainer_can_reject_a_pending_leave_request_without_comment(): void
+    public function test_educator_can_reject_a_pending_leave_request_without_comment(): void
     {
         $student = User::factory()->create([
             'role' => 'student',
         ]);
 
-        $trainer = User::factory()->create([
-            'role' => 'trainer',
+        $educator = User::factory()->create([
+            'role' => 'educator',
         ]);
 
         $leaveRequest = $this->makePendingLeaveRequest($student);
 
-        Sanctum::actingAs($trainer);
+        Sanctum::actingAs($educator);
 
         $response = $this->patchJson(route('leave-requests.reject', $leaveRequest));
 
@@ -69,14 +69,14 @@ class LeaveRequestReviewTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('message', 'Leave request rejected successfully.')
             ->assertJsonPath('data.status', 'rejected')
-            ->assertJsonPath('data.reviewed_by', $trainer->id)
+            ->assertJsonPath('data.reviewed_by', $educator->id)
             ->assertJsonPath('data.review_note', null)
             ->assertJsonPath('data.comment', null);
 
         $leaveRequest->refresh();
 
         $this->assertSame('rejected', $leaveRequest->status);
-        $this->assertSame($trainer->id, $leaveRequest->reviewed_by);
+        $this->assertSame($educator->id, $leaveRequest->reviewed_by);
         $this->assertNotNull($leaveRequest->reviewed_at);
         $this->assertNull($leaveRequest->review_note);
     }
@@ -87,13 +87,13 @@ class LeaveRequestReviewTest extends TestCase
             'role' => 'student',
         ]);
 
-        $trainer = User::factory()->create([
-            'role' => 'trainer',
+        $educator = User::factory()->create([
+            'role' => 'educator',
         ]);
 
         $leaveRequest = $this->makePendingLeaveRequest($student);
 
-        Sanctum::actingAs($trainer);
+        Sanctum::actingAs($educator);
 
         $this->patchJson(route('leave-requests.approve', $leaveRequest), [
             'comment' => 'Approved once.',
@@ -110,7 +110,7 @@ class LeaveRequestReviewTest extends TestCase
         $leaveRequest->refresh();
 
         $this->assertSame('approved', $leaveRequest->status);
-        $this->assertSame($trainer->id, $leaveRequest->reviewed_by);
+        $this->assertSame($educator->id, $leaveRequest->reviewed_by);
         $this->assertSame('Approved once.', $leaveRequest->review_note);
     }
 

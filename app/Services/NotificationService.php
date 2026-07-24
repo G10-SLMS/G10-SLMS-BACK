@@ -129,7 +129,7 @@ class NotificationService
     protected function reviewersFor(User $student): array
     {
         return User::query()
-            ->whereIn('role', ['admin', 'trainer'])
+            ->whereIn('role', ['admin', 'educator'])
             ->pluck('id')
             ->unique()
             ->values()

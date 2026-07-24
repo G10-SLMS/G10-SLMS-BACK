@@ -51,7 +51,7 @@ class UserController extends Controller
             'counts' => [
                 'total' => User::count(),
                 'student' => (int) ($roleCounts['student'] ?? 0),
-                'trainer' => (int) ($roleCounts['trainer'] ?? 0),
+                'educator' => (int) ($roleCounts['educator'] ?? 0),
                 'admin' => (int) ($roleCounts['admin'] ?? 0),
             ],
         ]);
@@ -116,11 +116,11 @@ class UserController extends Controller
 
     public function assignedStudents(Request $request): JsonResponse
     {
-        $trainer = $request->user();
+        $educator = $request->user();
 
         $students = User::query()
             ->where('role', 'student')
-            ->where('trainer_id', $trainer->id)
+            ->where('educator_id', $educator->id)
             ->with('avatar')
             ->get();
 

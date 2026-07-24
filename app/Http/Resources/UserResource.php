@@ -22,7 +22,7 @@ class UserResource extends JsonResource
             'class_name' => $this->class_name,
             'generation' => $this->generation,
             'province' => $this->province,
-            'trainer_id' => $this->trainer_id,
+            'educator_id' => $this->educator_id,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

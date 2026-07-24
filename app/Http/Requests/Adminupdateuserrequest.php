@@ -19,10 +19,10 @@ class AdminUpdateUserRequest extends FormRequest
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'email' => ['sometimes', 'required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
-            'role' => ['sometimes', 'nullable', Rule::in(['admin', 'trainer', 'student'])],
+            'role' => ['sometimes', 'nullable', Rule::in(['admin', 'educator', 'student'])],
             'gender' => ['sometimes', 'nullable', Rule::in(['male', 'female'])],
             'phone' => ['sometimes', 'nullable', 'string', 'max:50'],
-            'trainer_id' => ['sometimes', 'nullable', 'exists:users,id'],
+            'educator_id' => ['sometimes', 'nullable', 'exists:users,id'],
             'student_id' => ['sometimes', 'nullable', 'string', 'max:50'],
             'class_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'generation' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -34,7 +34,7 @@ class AdminUpdateUserRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'trainer_id.exists' => 'The selected trainer does not exist.',
+            'educator_id.exists' => 'The selected educator does not exist.',
         ];
     }
 }

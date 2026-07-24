@@ -45,9 +45,9 @@ class ReportController extends Controller
     {
         $user = $request->user();
 
-        if ($user && $user->role === 'trainer') {
+        if ($user && $user->role === 'educator') {
             $query->whereHas('user', function (Builder $q) use ($user) {
-                $q->where('trainer_id', $user->id);
+                $q->where('educator_id', $user->id);
             });
         }
     }

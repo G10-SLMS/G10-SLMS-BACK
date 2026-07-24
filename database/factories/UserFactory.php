@@ -54,12 +54,12 @@ class UserFactory extends Factory
     }
 
     /**
-     * Indicate that the user is a trainer.
+     * Indicate that the user is an educator.
      */
-    public function trainer(): static
+    public function educator(): static
     {
         return $this->state(fn (array $attributes) => [
-            'role' => 'trainer',
+            'role' => 'educator',
         ]);
     }
 }

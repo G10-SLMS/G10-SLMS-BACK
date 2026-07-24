@@ -41,7 +41,7 @@ class LeaveTypeController extends Controller
 
     /**
      * Display the specified resource.
-     * Get single leave type (all user: Admin, Trainer, and Student)
+     * Get single leave type (all user: Admin, Educator, and Student)
      */
     public function show(string $id)
     {
