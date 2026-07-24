@@ -28,8 +28,8 @@ class LeaveRequestSeeder extends Seeder
         $statuses = ['pending', 'approved', 'rejected'];
 
         foreach ($students as $index => $student) {
-            $reviewer = $student->trainer_id
-                ? User::find($student->trainer_id)
+            $reviewer = $student->educator_id
+                ? User::find($student->educator_id)
                 : User::where('role', 'admin')->first();
 
             $status = $statuses[$index % count($statuses)];

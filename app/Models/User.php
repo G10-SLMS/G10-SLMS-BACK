@@ -14,7 +14,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name', 'gender', 'student_id', 'generation', 'class_name', 'phone',
-        'province', 'email', 'password', 'role', 'avatar_id', 'trainer_id',
+        'province', 'email', 'password', 'role', 'avatar_id', 'educator_id',
     ];
 
     protected $hidden = [
@@ -36,14 +36,14 @@ class User extends Authenticatable
         return $this->belongsTo(Avatar::class);
     }
 
-    public function trainer()
+    public function educator()
     {
-        return $this->belongsTo(User::class, 'trainer_id');
+        return $this->belongsTo(User::class, 'educator_id');
     }
 
     public function students()
     {
-        return $this->hasMany(User::class, 'trainer_id');
+        return $this->hasMany(User::class, 'educator_id');
     }
 
     public function isAdmin(): bool
@@ -51,9 +51,9 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
-    public function isTrainer(): bool
+    public function isEducator(): bool
     {
-        return $this->role === 'trainer';
+        return $this->role === 'educator';
     }
 
     public function isStudent(): bool

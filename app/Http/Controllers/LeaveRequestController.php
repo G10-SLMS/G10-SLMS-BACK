@@ -257,17 +257,17 @@ class LeaveRequestController extends Controller
 
         // Authorization check
         $isOwner = $user->id === $leaveRequest->user_id;
-        $isTrainerOrAdmin = in_array($user->role, ['trainer', 'admin']);
+        $isEducatorOrAdmin = in_array($user->role, ['educator', 'admin']);
 
-        if (!$isOwner && !$isTrainerOrAdmin) {
+        if (!$isOwner && !$isEducatorOrAdmin) {
             return response()->json([
                 'success' => false,
                 'message' => 'You are not authorized to perform this action.',
             ], 403);
         }
 
-        // If trainer/admin is updating with status, handle approve/reject
-        if ($isTrainerOrAdmin && $request->has('status')) {
+        // If educator/admin is updating with status, handle approve/reject
+        if ($isEducatorOrAdmin && $request->has('status')) {
             if ($leaveRequest->status !== 'pending') {
                 return response()->json([
                     'success' => false,

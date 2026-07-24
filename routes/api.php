@@ -50,7 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
 
-    // Notifications: Student/Trainer/Admin (each sees only their own)
+    // Notifications: Student/Educator/Admin (each sees only their own)
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
@@ -63,15 +63,15 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('leave-requests.attachments.store');
     });
 
-    // Update leave request (Student: own, Trainer/Admin: any with status)
+    // Update leave request (Student: own, Educator/Admin: any with status)
     Route::put('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update']);
 
-    // Trainer: own assigned students only (not the full user directory)
-    Route::middleware('role:trainer')->group(function () {
-        Route::get('/trainer/students', [UserController::class, 'assignedStudents']);
+    // Educator: own assigned students only (not the full user directory)
+    Route::middleware('role:educator')->group(function () {
+        Route::get('/educator/students', [UserController::class, 'assignedStudents']);
     });
 
-    // Shared: Student/Trainer/Admin
+    // Shared: Student/Educator/Admin
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
     Route::get('/leave-requests/stats', [LeaveRequestController::class, 'stats']);
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show']);
@@ -92,8 +92,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/leave-history/{id}', [LeaveHistoryController::class, 'show']);
     });
 
-    // Reports Dashboard: Admin (org-wide) / Trainer (own students only)
-    Route::middleware('role:admin,trainer')->group(function () {
+    // Reports Dashboard: Admin (org-wide) / Educator (own students only)
+    Route::middleware('role:admin,educator')->group(function () {
         Route::get('/reports/summary', [ReportController::class, 'summary']);
     });
 });

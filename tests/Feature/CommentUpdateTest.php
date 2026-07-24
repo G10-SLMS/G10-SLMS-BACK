@@ -219,12 +219,12 @@ class CommentUpdateTest extends TestCase
     }
 
     /**
-     * Test that a trainer (non-admin) cannot update another user's comment.
+     * Test that an educator (non-admin) cannot update another user's comment.
      */
-    public function test_trainer_cannot_update_other_users_comment(): void
+    public function test_educator_cannot_update_other_users_comment(): void
     {
-        /** @var User $trainer */
-        $trainer = User::factory()->trainer()->create();
+        /** @var User $educator */
+        $educator = User::factory()->educator()->create();
         /** @var User $student */
         $student = User::factory()->create();
         $leaveRequest = LeaveRequest::factory()->create();
@@ -234,9 +234,9 @@ class CommentUpdateTest extends TestCase
             'body' => 'Student comment',
         ]);
 
-        $response = $this->actingAs($trainer, 'sanctum')
+        $response = $this->actingAs($educator, 'sanctum')
             ->putJson("/api/comments/{$comment->id}", [
-                'body' => 'Trainer trying to update',
+                'body' => 'Educator trying to update',
             ]);
 
         $response->assertStatus(403)
