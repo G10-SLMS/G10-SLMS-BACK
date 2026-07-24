@@ -10,6 +10,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserImportController;
 use App\Http\Controllers\CalendarController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +28,8 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('/users', [UserController::class, 'store']);
     Route::put('/users/{user}', [UserController::class, 'update']);
     Route::delete('/users/{user}', [UserController::class, 'destroy']);
+    Route::get('/users/import/template', [UserImportController::class, 'template']);
+    Route::post('/users/import', [UserImportController::class, 'import']);
     Route::post('/admin/default-avatars', [AuthController::class, 'uploadDefaultAvatar']);
 });
 
