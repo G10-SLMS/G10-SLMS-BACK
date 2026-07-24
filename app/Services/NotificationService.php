@@ -128,14 +128,12 @@ class NotificationService
 
     protected function reviewersFor(User $student): array
     {
-        $ids = User::query()
-            ->whereIn('role', ['admin', 'trainer'])
+        return User::query()
+            ->whereIn('role', ['admin', 'educator'])
             ->pluck('id')
             ->unique()
             ->values()
             ->all();
-
-        return $ids;
     }
 
     protected function rangeLabel(LeaveRequest $leaveRequest): string

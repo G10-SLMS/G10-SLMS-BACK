@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\LeaveRequest;
+use App\Models\LeaveRequestApproval;
 use App\Models\Attachment;
 use App\Http\Requests\StoreLeaveRequest;
 use App\Http\Requests\UpdateLeaveRequest;
+use App\Http\Resources\LeaveRequestApprovalResource;
+use App\Services\LeaveService;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,11 +17,32 @@ use Illuminate\Support\Facades\Storage;
 
 class LeaveRequestController extends Controller
 {
-    public function __construct(protected NotificationService $notifications) {}
+    public function __construct(
+        protected NotificationService $notifications,
+        protected LeaveService $leaveService,
+    ) {}
+
+    /**
+     * Serialize a leave request, replacing the raw approval-history relation
+     * (when loaded) with the clean approver/status/reason/action_at shape
+     * the frontend expects.
+     */
+    private function formatLeaveRequest(LeaveRequest $leaveRequest): array
+    {
+        $data = $leaveRequest->toArray();
+
+        if ($leaveRequest->relationLoaded('approvalHistory')) {
+            $data['approval_history'] = LeaveRequestApprovalResource::collection(
+                $leaveRequest->approvalHistory
+            )->toArray(request());
+        }
+
+        return $data;
+    }
 
     public function index(Request $request)
     {
-        $query = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer', 'attachments']);
+        $query = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer', 'attachments', 'approvalHistory.approver']);
 
         // Students can only see their own requests
         if ($request->user()->role === 'student') {
@@ -39,9 +63,26 @@ class LeaveRequestController extends Controller
                 });
 
                 // Search by student ID via user relationship
+                // Handle both with and without leading zero (e.g. "0123" -> searches for "123" and "0123")
                 $q->orWhereHas('user', function ($userQuery) use ($search) {
                     $userQuery->where('student_id', 'LIKE', '%' . $search . '%');
+                    // Also try without leading zero if search starts with '0'
+                    if (preg_match('/^0(\d+)$/', $search, $matches)) {
+                        $userQuery->orWhere('student_id', 'LIKE', '%' . $matches[1] . '%');
+                    }
+                    // Also try with leading zero if search is purely numeric without leading zero
+                    if (is_numeric($search) && !str_starts_with($search, '0')) {
+                        $userQuery->orWhere('student_id', 'LIKE', '%0' . $search . '%');
+                    }
                 });
+
+                // Search by leave type name via leaveType relationship
+                $q->orWhereHas('leaveType', function ($typeQuery) use ($search) {
+                    $typeQuery->where('name', 'LIKE', '%' . $search . '%');
+                });
+
+                // Search by status text (e.g. "pending", "approved", "rejected", "cancelled")
+                $q->orWhere('status', 'LIKE', '%' . $search . '%');
             });
         }
 
@@ -108,7 +149,7 @@ class LeaveRequestController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Leave requests retrieved successfully.',
-            'data' => $leaveRequests->items(),
+            'data' => array_map(fn (LeaveRequest $item) => $this->formatLeaveRequest($item), $leaveRequests->items()),
             'meta' => [
                 'current_page' => $leaveRequests->currentPage(),
                 'last_page' => $leaveRequests->lastPage(),
@@ -125,10 +166,42 @@ class LeaveRequestController extends Controller
         ]);
     }
 
+    public function stats(Request $request): JsonResponse
+    {
+        $query = LeaveRequest::query();
+
+        // Students can only see their own stats
+        if ($request->user()->role === 'student') {
+            $query->where('user_id', $request->user()->id);
+        }
+
+        $counts = $query->selectRaw("
+                COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+                COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
+                COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected,
+                COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled
+            ")
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'pending' => (int) $counts->pending,
+                'approved' => (int) $counts->approved,
+                'rejected' => (int) $counts->rejected,
+                'cancelled' => (int) $counts->cancelled,
+            ],
+        ]);
+    }
+
     public function store(StoreLeaveRequest $request)
     {
+        $data = $this->leaveService->normalizeDuration(
+            $request->safe()->except('supporting_document'),
+        );
+
         $leave = LeaveRequest::create([
-            ...$request->safe()->except('supporting_document'),
+            ...$data,
             'user_id' => $request->user()->id,
             'status' => 'pending',
         ]);
@@ -173,7 +246,7 @@ class LeaveRequestController extends Controller
     {
         $user = $request->user();
 
-        $leaveRequest = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer', 'comments', 'attachments'])->find($id);
+        $leaveRequest = LeaveRequest::with(['leaveType', 'user.avatar', 'reviewer', 'comments', 'attachments', 'approvalHistory.approver'])->find($id);
 
         if (!$leaveRequest) {
             return response()->json([
@@ -194,7 +267,7 @@ class LeaveRequestController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Leave request retrieved successfully.',
-            'data' => $leaveRequest,
+            'data' => $this->formatLeaveRequest($leaveRequest),
         ]);
     }
 
@@ -204,17 +277,17 @@ class LeaveRequestController extends Controller
 
         // Authorization check
         $isOwner = $user->id === $leaveRequest->user_id;
-        $isTrainerOrAdmin = in_array($user->role, ['trainer', 'admin']);
+        $isEducatorOrAdmin = in_array($user->role, ['educator', 'admin']);
 
-        if (!$isOwner && !$isTrainerOrAdmin) {
+        if (!$isOwner && !$isEducatorOrAdmin) {
             return response()->json([
                 'success' => false,
                 'message' => 'You are not authorized to perform this action.',
             ], 403);
         }
 
-        // If trainer/admin is updating with status, handle approve/reject
-        if ($isTrainerOrAdmin && $request->has('status')) {
+        // If educator/admin is updating with status, handle approve/reject
+        if ($isEducatorOrAdmin && $request->has('status')) {
             if ($leaveRequest->status !== 'pending') {
                 return response()->json([
                     'success' => false,
@@ -231,6 +304,13 @@ class LeaveRequestController extends Controller
                 'review_note' => $validated['review_note'] ?? null,
             ]);
 
+            LeaveRequestApproval::record(
+                $leaveRequest,
+                $user,
+                $validated['status'],
+                $validated['review_note'] ?? null,
+            );
+
             $message = $validated['status'] === 'approved'
                 ? 'Leave request approved successfully.'
                 : 'Leave request rejected successfully.';
@@ -244,7 +324,9 @@ class LeaveRequestController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $message,
-                'data' => $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer']),
+                'data' => $this->formatLeaveRequest(
+                    $leaveRequest->load(['leaveType', 'user.avatar', 'reviewer', 'approvalHistory.approver'])
+                ),
             ]);
         }
 
@@ -303,6 +385,15 @@ class LeaveRequestController extends Controller
         }
 
         unset($validated['supporting_document'], $validated['remove_attachment']);
+
+        $mergedForDuration = array_merge([
+            'duration_type' => $leaveRequest->duration_type,
+            'start_date' => $leaveRequest->start_date?->toDateString(),
+            'start_time' => $leaveRequest->start_time,
+            'end_time' => $leaveRequest->end_time,
+        ], $validated);
+
+        $validated = array_merge($validated, $this->leaveService->normalizeDuration($mergedForDuration));
 
         $leaveRequest->update($validated);
 
