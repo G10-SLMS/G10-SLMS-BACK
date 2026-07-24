@@ -10,6 +10,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\CalendarController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -49,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
+    Route::get('/calendar-events', [CalendarController::class, 'index']);
 
     // Notifications: Student/Educator/Admin (each sees only their own)
     Route::get('/notifications', [NotificationController::class, 'index']);
