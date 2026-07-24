@@ -14,7 +14,6 @@ class LeaveRequest extends Model
 
     public const MIN_HOURLY_DURATION = 0.5;
     public const MAX_HOURLY_DURATION = 8;
-    public const HOURLY_DURATION_STEP = 0.5;
 
     public const DURATION_TYPES = ['full_day', 'hourly'];
 
@@ -44,25 +43,25 @@ class LeaveRequest extends Model
         'reviewed_at' => 'datetime',
     ];
 
-    public static function isValidHourlyDuration(float $hours): bool
+    public static function isValidHourlyDuration(int $minutes): bool
     {
-        if ($hours < self::MIN_HOURLY_DURATION || $hours > self::MAX_HOURLY_DURATION) {
-            return false;
-        }
+        $minMinutes = (int) round(self::MIN_HOURLY_DURATION * 60);
+        $maxMinutes = (int) round(self::MAX_HOURLY_DURATION * 60);
 
-        $steps = $hours / self::HOURLY_DURATION_STEP;
-
-        return abs($steps - round($steps)) < 0.0001;
+        return $minutes >= $minMinutes && $minutes <= $maxMinutes;
     }
 
-    public static function calculateHoursFromTimes(string $startTime, string $endTime): float
+    public static function calculateMinutesFromTimes(string $startTime, string $endTime): int
     {
         $start = Carbon::createFromFormat(strlen($startTime) > 5 ? 'H:i:s' : 'H:i', $startTime);
         $end = Carbon::createFromFormat(strlen($endTime) > 5 ? 'H:i:s' : 'H:i', $endTime);
 
-        $minutes = $start->diffInMinutes($end, false);
+        return $start->diffInMinutes($end, false);
+    }
 
-        return round($minutes / 60, 1);
+    public static function calculateHoursFromTimes(string $startTime, string $endTime): float
+    {
+        return round(self::calculateMinutesFromTimes($startTime, $endTime) / 60, 2);
     }
 
     public function user(): BelongsTo
