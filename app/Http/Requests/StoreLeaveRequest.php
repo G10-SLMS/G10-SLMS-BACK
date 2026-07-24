@@ -61,19 +61,18 @@ class StoreLeaveRequest extends FormRequest
             return;
         }
 
-        $hours = LeaveRequest::calculateHoursFromTimes($startTime, $endTime);
+        $minutes = LeaveRequest::calculateMinutesFromTimes($startTime, $endTime);
 
-        if ($hours <= 0) {
+        if ($minutes <= 0) {
             $fail('End time must be after start time.');
             return;
         }
 
-        if (!LeaveRequest::isValidHourlyDuration($hours)) {
+        if (!LeaveRequest::isValidHourlyDuration($minutes)) {
             $fail(sprintf(
-                'Duration must be between %s and %s hours, in increments of %s.',
-                LeaveRequest::MIN_HOURLY_DURATION,
-                LeaveRequest::MAX_HOURLY_DURATION,
-                LeaveRequest::HOURLY_DURATION_STEP
+                'Leave duration must be between %d minutes and %s hours.',
+                LeaveRequest::MIN_HOURLY_DURATION * 60,
+                LeaveRequest::MAX_HOURLY_DURATION
             ));
         }
     }
