@@ -2,21 +2,19 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'avatar',
-        'role',
-        'trainer_id',
+        'name', 'gender', 'student_id', 'generation', 'class_name', 'phone',
+        'province', 'email', 'password', 'role', 'avatar_id', 'educator_id',
     ];
 
     protected $hidden = [
@@ -29,34 +27,42 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 
-    // student -> trainer
-    public function trainer()
+    public function avatar(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'trainer_id');
+        return $this->belongsTo(Avatar::class);
     }
 
-    // trainer -> students
+    public function educator()
+    {
+        return $this->belongsTo(User::class, 'educator_id');
+    }
+
     public function students()
     {
-        return $this->hasMany(User::class, 'trainer_id');
+        return $this->hasMany(User::class, 'educator_id');
     }
 
-    // Check user role
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
     }
 
-    public function isTrainer(): bool
+    public function isEducator(): bool
     {
-        return $this->role === 'trainer';
+        return $this->role === 'educator';
     }
 
     public function isStudent(): bool
     {
         return $this->role === 'student';
+    }
+
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new \App\Notifications\ResetPasswordNotification($token));
     }
 }

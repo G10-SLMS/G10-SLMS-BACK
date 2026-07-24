@@ -19,6 +19,16 @@ return new class extends Migration
             $table->string('path');                          // storage path (e.g. avatars/xxx.pdf equivalent)
             $table->string('mime_type')->nullable();
             $table->unsignedBigInteger('size')->nullable();   // bytes
+            $table->foreignId('uploaded_by')
+                ->constrained('users')
+                ->cascadeOnDelete();
+            $table->boolean('is_verified')->default(false);
+            $table->foreignId('verified_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+            $table->timestamp('verified_at')->nullable();
+            $table->softDeletes();
 
             $table->timestamps();
         });

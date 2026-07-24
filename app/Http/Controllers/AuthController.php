@@ -4,32 +4,40 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\UpdateProfileRequest;
+use App\Models\Avatar;
 use App\Models\User;
-use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password as PasswordRule;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    //Register
     public function register(RegisterRequest $request)
     {
         $data = $request->validated();
         $data['password'] = Hash::make($data['password']);
+        $data['role'] = $data['role'] ?? 'student';
 
         $user = User::create($data);
+
+        $defaultAvatar = Avatar::fallbackFor($data['gender'] ?? null);
+
+        if ($defaultAvatar) {
+            $user->avatar_id = $defaultAvatar->id;
+            $user->save();
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'user' => $user,
+            'user' => $user->load('avatar'),
             'token' => $token,
         ], 201);
     }
 
-    //Login
     public function login(Request $request)
     {
         $request->validate([
@@ -46,12 +54,11 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'user' => $user,
+            'user' => $user->load('avatar'),
             'token' => $token,
         ]);
     }
 
-    //Logout
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
@@ -59,67 +66,171 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out successfully.']);
     }
 
-    //Forgot Password
     public function forgotPassword(Request $request)
     {
         $request->validate(['email' => 'required|email']);
 
         Password::sendResetLink($request->only('email'));
+
         return response()->json([
             'message' => 'If an account with that email exists, a password reset link has been sent.',
         ]);
     }
 
-    //Reset Password
     public function resetPassword(Request $request)
     {
         $request->validate([
+            'email' => 'required|email|exists:users,email',
             'token' => 'required|string',
-            'email' => 'required|email',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => ['required', 'confirmed', PasswordRule::min(8)],
         ]);
 
         $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
-            function (User $user, string $password) {
-                $user->forceFill(['password' => Hash::make($password), 'remember_token' => null])->setRememberToken(Str::random(60));
+            $request->only('email', 'token', 'password', 'password_confirmation'),
+            function ($user, $password) {
+                $user->password = Hash::make($password);
                 $user->save();
                 $user->tokens()->delete();
-
-                event(new PasswordReset($user));
             }
         );
 
-        if ($status !== Password::PASSWORD_RESET) {
-            return response()->json(['message' => __($status)], 422);
+        if ($status === Password::PASSWORD_RESET) {
+            return response()->json(['message' => 'Password reset successfully']);
         }
-        return response()->json(['message' => 'Password has been reset successfully.']);
+
+        throw ValidationException::withMessages([
+            'email' => [__($status)],
+        ]);
     }
 
-    //Profile
     public function profile(Request $request)
     {
-        return response()->json($request->user());
+        return response()->json($request->user()->load('avatar'));
     }
 
-    public function updateProfile(UpdateProfileRequest $request)
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
         $user = $request->user();
         $data = $request->validated();
 
-        if ($request->hasFile('avatar')) {
-            if ($user->avatar) {
-                Storage::disk('public')->delete($user->avatar);
-            }
-            $data['avatar'] = $request->file('avatar')->store('avatars', 'public');
-        }
-
-        if (isset($data['password'])) {
+        if (! empty($data['password'])) {
             $data['password'] = Hash::make($data['password']);
+        } else {
+            unset($data['password']);
         }
 
         $user->update($data);
 
-        return response()->json($user->fresh());
+        return response()->json([
+            'message' => 'Profile updated successfully.',
+            'user' => $user->fresh()->load('avatar'),
+        ], 200);
+    }
+
+    public function getDefaultAvatars(Request $request)
+    {
+        $gender = $request->query('gender');
+
+        $defaultAvatars = Avatar::selectable()
+            ->forGender(in_array($gender, ['male', 'female'], true) ? $gender : null)
+            ->orderBy('gender')
+            ->orderBy('filename')
+            ->get()
+            ->map(fn ($avatar) => [
+                'id' => $avatar->id,
+                'filename' => $avatar->filename,
+                'url' => asset($avatar->path),
+                'gender' => $avatar->gender,
+            ]);
+
+        return response()->json([
+            'avatars' => $defaultAvatars,
+            'count' => $defaultAvatars->count(),
+        ]);
+    }
+
+    public function uploadDefaultAvatar(Request $request)
+    {
+        if (! $request->hasFile('avatar')) {
+            return response()->json([
+                'message' => 'No avatar files uploaded',
+                'errors' => ['avatar' => ['At least one avatar file is required']],
+            ], 422);
+        }
+
+        $defaultPath = public_path('avatars/defaults');
+
+        if (! file_exists($defaultPath)) {
+            mkdir($defaultPath, 0755, true);
+        }
+
+        $existingFiles = glob($defaultPath . '/avatar-*.{jpg,jpeg,png,gif,webp}', GLOB_BRACE);
+        $numbers = [];
+
+        foreach ($existingFiles as $file) {
+            preg_match('/avatar-(\d+)/', basename($file), $matches);
+            if (isset($matches[1])) {
+                $numbers[] = (int) $matches[1];
+            }
+        }
+
+        $nextNumber = ! empty($numbers) ? max($numbers) + 1 : 1;
+
+        $files = $request->file('avatar');
+        if (! is_array($files)) {
+            $files = [$files];
+        }
+
+        foreach ($files as $file) {
+            if (! $file->isValid()) {
+                return response()->json([
+                    'message' => 'Invalid file uploaded',
+                    'errors' => ['avatar' => ['One or more files are invalid']],
+                ], 422);
+            }
+
+            $extension = strtolower($file->getClientOriginalExtension());
+            if (! in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                return response()->json([
+                    'message' => 'Invalid file type',
+                    'errors' => ['avatar' => ['Only jpg, jpeg, png, gif, and webp files are allowed']],
+                ], 422);
+            }
+
+            if ($file->getSize() > 2048 * 1024) {
+                return response()->json([
+                    'message' => 'File too large',
+                    'errors' => ['avatar' => ['Each file must be less than 2MB']],
+                ], 422);
+            }
+        }
+
+        $uploadedAvatars = [];
+
+        foreach ($files as $file) {
+            $extension = $file->getClientOriginalExtension();
+            $filename = "avatar-{$nextNumber}.{$extension}";
+            $relativePath = "avatars/defaults/{$filename}";
+            $file->move($defaultPath, $filename);
+
+            $avatar = Avatar::create([
+                'filename' => $filename,
+                'path' => $relativePath,
+                'is_default' => true,
+            ]);
+
+            $uploadedAvatars[] = [
+                'id' => $avatar->id,
+                'filename' => $filename,
+                'url' => asset($relativePath),
+            ];
+
+            $nextNumber++;
+        }
+
+        return response()->json([
+            'message' => count($uploadedAvatars) . ' default avatar(s) uploaded successfully',
+            'avatars' => $uploadedAvatars,
+        ], 201);
     }
 }
