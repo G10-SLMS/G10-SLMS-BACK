@@ -6,7 +6,12 @@ use App\Models\Comment;
 use App\Models\LeaveRequest;
 use App\Models\Notification;
 use App\Models\User;
+use App\Notifications\LeaveRequestApprovedNotification;
+use App\Notifications\LeaveRequestRejectedNotification;
+use App\Notifications\LeaveRequestSubmittedNotification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification as NotificationFacade;
 
 class NotificationService
 {
@@ -124,6 +129,57 @@ class NotificationService
             'priority' => 'low',
             'created_by' => $student->id,
         ]);
+    }
+
+    public function emailLeaveSubmitted(LeaveRequest $leaveRequest): bool
+    {
+        $recipients = User::query()
+            ->whereIn('role', ['admin', 'educator'])
+            ->get();
+
+        return $this->sendEmailSafely(
+            $recipients,
+            new LeaveRequestSubmittedNotification($leaveRequest),
+        );
+    }
+
+    public function emailLeaveApproved(LeaveRequest $leaveRequest): bool
+    {
+        return $this->sendEmailSafely(
+            [$leaveRequest->user],
+            new LeaveRequestApprovedNotification($leaveRequest),
+        );
+    }
+
+    public function emailLeaveRejected(LeaveRequest $leaveRequest): bool
+    {
+        return $this->sendEmailSafely(
+            [$leaveRequest->user],
+            new LeaveRequestRejectedNotification($leaveRequest),
+        );
+    }
+
+    protected function sendEmailSafely(iterable $recipients, $notification): bool
+    {
+        $recipients = collect($recipients)->filter()->values();
+
+        if ($recipients->isEmpty()) {
+            return true;
+        }
+
+        try {
+            NotificationFacade::send($recipients, $notification);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('Leave request email notification failed to send.', [
+                'notification' => get_class($notification),
+                'recipients' => $recipients->pluck('id')->all(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     protected function reviewersFor(User $student): array

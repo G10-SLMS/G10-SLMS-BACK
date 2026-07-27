@@ -50,15 +50,18 @@ class ResetPasswordNotification extends Notification
 
     protected function buildMailMessage($notifiable, $token)
     {
-        $url = url('/reset-password?token='.$token.'&email='.$notifiable->getEmailForPasswordReset());
+        $frontendUrl = rtrim(config('app.frontend_url'), '/');
+        $url = $frontendUrl.'/reset-password?token='.$token.'&email='.urlencode($notifiable->getEmailForPasswordReset());
+        $expireMinutes = config('auth.passwords.'.config('auth.defaults.passwords').'.expire');
 
         return (new MailMessage)
-            ->subject(Lang::get('Reset Password Notification'))
-            ->greeting(Lang::get('Hello!'))
-            ->line(Lang::get('You are receiving this email because we received a password reset request for your account.'))
+            ->subject(Lang::get('Reset Your SLMS Password'))
+            ->greeting(Lang::get('Hello, :name!', ['name' => $notifiable->name ?? 'there']))
+            ->line(Lang::get('We received a request to reset the password for your SLMS account.'))
             ->action(Lang::get('Reset Password'), $url)
-            ->line(Lang::get('This password reset link will expire in :count minutes.', ['count' => config('auth.passwords.'.config('auth.defaults.passwords').'.expire')]))
-            ->line(Lang::get('If you did not request a password reset, no further action is required.'));
+            ->line(Lang::get('This link will expire in :count minutes for your security.', ['count' => $expireMinutes]))
+            ->line(Lang::get("If you didn't request a password reset, no action is needed — your account is still secure."))
+            ->salutation(Lang::get("Regards,\nThe SLMS Team"));
     }
 
     public static function createUrlUsing($callback)

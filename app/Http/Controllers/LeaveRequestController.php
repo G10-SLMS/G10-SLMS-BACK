@@ -231,13 +231,18 @@ class LeaveRequestController extends Controller
         }
 
         $this->notifications->notifyLeaveSubmitted($leave);
+        $emailSent = $this->notifications->emailLeaveSubmitted($leave);
 
         // Reload the model with relationships to get fresh data
         $leave = $leave->fresh(['leaveType', 'attachments']);
 
+        $message = $emailSent
+            ? 'Leave request created successfully.'
+            : 'Leave request created successfully, but the notification email to your admin/educator could not be sent.';
+
         return response()->json([
             'success' => true,
-            'message' => "Leave request created successfully",
+            'message' => $message,
             'data' => $leave->toArray(),
         ], 201);
     }
@@ -317,8 +322,14 @@ class LeaveRequestController extends Controller
 
             if ($validated['status'] === 'approved') {
                 $this->notifications->notifyLeaveApproved($leaveRequest, $user);
+                $emailSent = $this->notifications->emailLeaveApproved($leaveRequest);
             } else {
                 $this->notifications->notifyLeaveRejected($leaveRequest, $user);
+                $emailSent = $this->notifications->emailLeaveRejected($leaveRequest);
+            }
+
+            if (!$emailSent) {
+                $message .= ' The student could not be notified by email.';
             }
 
             return response()->json([
