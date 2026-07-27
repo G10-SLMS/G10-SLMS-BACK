@@ -114,6 +114,59 @@ class UserController extends Controller
         ]);
     }
 
+    public function directory(Request $request): JsonResponse
+    {
+        $query = User::query()->where('role', 'student');
+
+        if ($request->filled('search')) {
+            $search = $request->string('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('student_id', 'like', "%{$search}%");
+            });
+        }
+
+        $students = $query->with('avatar')->orderBy('name')->get();
+
+        $generations = $students
+            ->groupBy(fn (User $student) => $student->generation ?: null)
+            ->map(function ($studentsInGeneration, $generationKey) {
+                $classes = $studentsInGeneration
+                    ->groupBy(fn (User $student) => $student->class_name ?: null)
+                    ->map(function ($studentsInClass, $classKey) {
+                        return [
+                            'class_name' => $classKey ?: null,
+                            'student_count' => $studentsInClass->count(),
+                            'students' => UserResource::collection($studentsInClass->values())->resolve(),
+                        ];
+                    })
+                    ->values();
+
+                $namedClasses = $classes->filter(fn ($c) => $c['class_name'] !== null)
+                    ->sortBy('class_name', SORT_NATURAL | SORT_FLAG_CASE)
+                    ->values();
+                $unassignedClasses = $classes->filter(fn ($c) => $c['class_name'] === null)->values();
+
+                return [
+                    'generation' => $generationKey ?: null,
+                    'student_count' => $studentsInGeneration->count(),
+                    'classes' => $namedClasses->concat($unassignedClasses)->values(),
+                ];
+            })
+            ->values();
+
+        $namedGenerations = $generations->filter(fn ($g) => $g['generation'] !== null)
+            ->sortByDesc('generation', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+        $unassignedGenerations = $generations->filter(fn ($g) => $g['generation'] === null)->values();
+
+        return response()->json([
+            'generations' => $namedGenerations->concat($unassignedGenerations)->values(),
+            'total_students' => $students->count(),
+        ]);
+    }
+
     public function assignedStudents(Request $request): JsonResponse
     {
         $educator = $request->user();

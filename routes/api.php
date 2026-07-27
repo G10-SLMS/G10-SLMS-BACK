@@ -76,6 +76,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/educator/students', [UserController::class, 'assignedStudents']);
     });
 
+    // Student Directory: all students grouped by generation & class (Admin/Educator)
+    Route::middleware('role:admin,educator')->group(function () {
+        Route::get('/students/directory', [UserController::class, 'directory']);
+    });
+
     // Shared: Student/Educator/Admin
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
     Route::get('/leave-requests/stats', [LeaveRequestController::class, 'stats']);
