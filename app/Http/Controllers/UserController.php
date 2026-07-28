@@ -37,13 +37,10 @@ class UserController extends Controller
             $query->where('class_name', $request->string('class_name'));
         }
 
-        $perPage = (int) $request->input('per_page', 10);
-        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
-
         $users = $query
             ->with('avatar')
             ->latest()
-            ->paginate($perPage);
+            ->paginate($this->perPage($request));
 
         $roleCounts = User::selectRaw('role, count(*) as count')->groupBy('role')->pluck('count', 'role');
 
@@ -115,14 +112,7 @@ class UserController extends Controller
             ], 422);
         }
 
-        $user->is_active = ! $user->is_active;
-        $user->save();
-
-        if (! $user->is_active) {
-            // Revoke existing sessions so a disabled user is signed out immediately,
-            // not just blocked from future logins.
-            $user->tokens()->delete();
-        }
+        $this->setActiveState(collect([$user]), ! $user->is_active);
 
         return response()->json([
             'message' => $user->is_active
@@ -139,16 +129,14 @@ class UserController extends Controller
             'ids.*' => ['integer', 'exists:users,id'],
         ]);
 
-        $ids = collect($validated['ids'])->unique();
-        $selfId = $request->user()->id;
-        $targetIds = $ids->reject(fn ($id) => $id === $selfId)->values();
+        [$ids, $targetIds] = $this->excludingSelf($validated['ids'], $request->user()->id);
 
         $deleted = User::whereIn('id', $targetIds)->delete();
 
         return response()->json([
             'message' => "{$deleted} user(s) deleted.",
             'deleted_count' => $deleted,
-            'skipped_self' => $ids->contains($selfId),
+            'skipped_self' => $ids->contains($request->user()->id),
         ]);
     }
 
@@ -160,29 +148,18 @@ class UserController extends Controller
             'is_active' => ['required', 'boolean'],
         ]);
 
-        $ids = collect($validated['ids'])->unique();
-        $selfId = $request->user()->id;
-        $targetIds = $ids->reject(fn ($id) => $id === $selfId)->values();
+        [$ids, $targetIds] = $this->excludingSelf($validated['ids'], $request->user()->id);
         $isActive = (bool) $validated['is_active'];
 
         $users = User::whereIn('id', $targetIds)->get();
-
-        foreach ($users as $user) {
-            $user->is_active = $isActive;
-            $user->save();
-
-            if (! $isActive) {
-                // Revoke sessions immediately, same as the single-user toggle.
-                $user->tokens()->delete();
-            }
-        }
+        $this->setActiveState($users, $isActive);
 
         return response()->json([
             'message' => $isActive
                 ? "{$users->count()} user(s) enabled."
                 : "{$users->count()} user(s) disabled.",
             'updated_count' => $users->count(),
-            'skipped_self' => $ids->contains($selfId),
+            'skipped_self' => $ids->contains($request->user()->id),
             'users' => UserResource::collection($users->load('avatar')),
         ]);
     }
@@ -208,16 +185,7 @@ class UserController extends Controller
         }
 
         $users = $query->get();
-
-        foreach ($users as $user) {
-            $user->is_active = $isActive;
-            $user->save();
-
-            if (! $isActive) {
-                // Revoke sessions immediately, same as the individual/bulk toggles.
-                $user->tokens()->delete();
-            }
-        }
+        $this->setActiveState($users, $isActive);
 
         $scopeLabel = $className !== null
             ? "class \"{$className}\" ({$validated['generation']})"
@@ -313,5 +281,26 @@ class UserController extends Controller
             'students' => UserResource::collection($students),
             'count' => $students->count(),
         ]);
+    }
+
+    private function setActiveState(iterable $users, bool $isActive): void
+    {
+        foreach ($users as $user) {
+            $user->is_active = $isActive;
+            $user->save();
+
+            if (! $isActive) {
+                // Revoke existing sessions so a disabled user is signed out
+                // immediately, not just blocked from future logins.
+                $user->tokens()->delete();
+            }
+        }
+    }
+
+    private function excludingSelf(array $ids, int $selfId): array
+    {
+        $unique = collect($ids)->unique();
+
+        return [$unique, $unique->reject(fn ($id) => $id === $selfId)->values()];
     }
 }

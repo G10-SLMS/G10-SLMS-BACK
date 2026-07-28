@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\Request;
 
 class LeaveRequest extends Model
 {
@@ -16,6 +18,7 @@ class LeaveRequest extends Model
     public const MAX_HOURLY_DURATION = 8;
 
     public const DURATION_TYPES = ['full_day', 'hourly'];
+    public const DETAIL_RELATIONS = ['leaveType', 'user.avatar', 'reviewer', 'attachments', 'approvalHistory.approver'];
 
     protected $fillable = [
         'user_id',
@@ -27,8 +30,6 @@ class LeaveRequest extends Model
         'reason',
         'duration_type',
         'duration_hours',
-        'start_time',
-        'end_time',
         'status',
         'reviewed_by',
         'review_note',
@@ -42,6 +43,8 @@ class LeaveRequest extends Model
         'duration_hours' => 'decimal:1',
         'reviewed_at' => 'datetime',
     ];
+
+    protected $appends = ['duration_label'];
 
     public static function isValidHourlyDuration(int $minutes): bool
     {
@@ -94,7 +97,109 @@ class LeaveRequest extends Model
         return $this->hasMany(Attachment::class);
     }
 
-    protected $appends = ['duration_label'];
+    public function scopeWithFullDetails(Builder $query): Builder
+    {
+        return $query->with(self::DETAIL_RELATIONS);
+    }
+
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->role === 'student') {
+            $query->where('user_id', $user->id);
+        }
+
+        return $query;
+    }
+
+    public function scopeSearchTerm(Builder $query, ?string $search): Builder
+    {
+        if (!$search) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $q) use ($search) {
+            if (is_numeric($search)) {
+                $q->orWhere('id', $search);
+            }
+
+            $q->orWhereHas('user', fn (Builder $userQuery) => $userQuery->where('name', 'LIKE', "%{$search}%"));
+
+            $q->orWhereHas('user', function (Builder $userQuery) use ($search) {
+                $userQuery->where('student_id', 'LIKE', "%{$search}%");
+
+                // Tolerate a leading zero being typed or omitted (e.g. "0123" vs "123").
+                if (preg_match('/^0(\d+)$/', $search, $matches)) {
+                    $userQuery->orWhere('student_id', 'LIKE', "%{$matches[1]}%");
+                }
+                if (is_numeric($search) && !str_starts_with($search, '0')) {
+                    $userQuery->orWhere('student_id', 'LIKE', "%0{$search}%");
+                }
+            });
+
+            $q->orWhereHas('leaveType', fn (Builder $typeQuery) => $typeQuery->where('name', 'LIKE', "%{$search}%"));
+
+            $q->orWhere('status', 'LIKE', "%{$search}%");
+        });
+    }
+
+    public function scopeApplyFilters(Builder $query, array $filters): Builder
+    {
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (!empty($filters['leave_type_id'])) {
+            $query->where('leave_type_id', $filters['leave_type_id']);
+        }
+
+        if (!empty($filters['start_date'])) {
+            $query->whereDate('start_date', '>=', $filters['start_date']);
+        }
+
+        if (!empty($filters['end_date'])) {
+            $query->whereDate('end_date', '<=', $filters['end_date']);
+        }
+
+        if (!empty($filters['submission_start_date'])) {
+            $query->whereDate('created_at', '>=', $filters['submission_start_date']);
+        }
+
+        if (!empty($filters['submission_end_date'])) {
+            $query->whereDate('created_at', '<=', $filters['submission_end_date']);
+        }
+
+        return $query;
+    }
+
+    private const SORT_COLUMNS = [
+        'start_date_asc' => ['start_date', 'asc'],
+        'start_date_desc' => ['start_date', 'desc'],
+        'end_date_asc' => ['end_date', 'asc'],
+        'end_date_desc' => ['end_date', 'desc'],
+        'submission_date_asc' => ['created_at', 'asc'],
+        'submission_date_desc' => ['created_at', 'desc'],
+        'latest' => ['created_at', 'desc'],
+    ];
+
+    public function scopeApplySort(Builder $query, ?string $sortBy): Builder
+    {
+        [$column, $direction] = self::SORT_COLUMNS[$sortBy] ?? self::SORT_COLUMNS['latest'];
+
+        return $query->orderBy($column, $direction);
+    }
+
+    /** Build the full index() query from a request in one line. */
+    public function scopeForListing(Builder $query, Request $request): Builder
+    {
+        return $query
+            ->visibleTo($request->user())
+            ->searchTerm($request->query('search'))
+            ->applyFilters($request->only([
+                'status', 'leave_type_id', 'start_date', 'end_date',
+                'submission_start_date', 'submission_end_date',
+            ]))
+            ->applySort($request->query('sort', 'latest'));
+    }
 
     public function getStartTimeAttribute($value): ?string
     {
