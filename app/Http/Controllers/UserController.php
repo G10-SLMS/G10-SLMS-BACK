@@ -29,6 +29,14 @@ class UserController extends Controller
             $query->where('role', $request->string('role'));
         }
 
+        if ($request->filled('generation')) {
+            $query->where('generation', $request->string('generation'));
+        }
+
+        if ($request->filled('class_name')) {
+            $query->where('class_name', $request->string('class_name'));
+        }
+
         $perPage = (int) $request->input('per_page', 10);
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
 
@@ -176,6 +184,50 @@ class UserController extends Controller
             'updated_count' => $users->count(),
             'skipped_self' => $ids->contains($selfId),
             'users' => UserResource::collection($users->load('avatar')),
+        ]);
+    }
+
+    public function toggleStatusByScope(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'generation' => ['required', 'string', 'max:255'],
+            'class_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $isActive = (bool) $validated['is_active'];
+        $className = $validated['class_name'] ?? null;
+
+        $query = User::query()
+            ->where('role', 'student')
+            ->where('generation', $validated['generation'])
+            ->where('id', '!=', $request->user()->id);
+
+        if ($className !== null) {
+            $query->where('class_name', $className);
+        }
+
+        $users = $query->get();
+
+        foreach ($users as $user) {
+            $user->is_active = $isActive;
+            $user->save();
+
+            if (! $isActive) {
+                // Revoke sessions immediately, same as the individual/bulk toggles.
+                $user->tokens()->delete();
+            }
+        }
+
+        $scopeLabel = $className !== null
+            ? "class \"{$className}\" ({$validated['generation']})"
+            : "generation \"{$validated['generation']}\"";
+
+        return response()->json([
+            'message' => $isActive
+                ? "{$users->count()} student(s) in {$scopeLabel} have been enabled."
+                : "{$users->count()} student(s) in {$scopeLabel} have been disabled.",
+            'updated_count' => $users->count(),
         ]);
     }
 

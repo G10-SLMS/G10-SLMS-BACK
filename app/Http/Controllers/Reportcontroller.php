@@ -10,6 +10,8 @@ use Illuminate\Support\Collection;
 
 class ReportController extends Controller
 {
+    private const FREQUENT_LEAVE_THRESHOLD = 3;
+
     public function summary(Request $request)
     {
         $request->validate([
@@ -34,7 +36,7 @@ class ReportController extends Controller
                 'summary' => $this->buildSummary(clone $baseQuery),
                 'by_leave_type' => $this->buildByLeaveType(clone $baseQuery),
                 'monthly' => $this->buildMonthly(clone $baseQuery, $startDate, $endDate),
-                'top_students' => $this->buildTopStudents(clone $baseQuery),
+                'frequent_students' => $this->buildFrequentStudents(clone $baseQuery),
             ],
         ]);
     }
@@ -96,20 +98,30 @@ class ReportController extends Controller
             ->all();
     }
 
-    private function buildTopStudents(Builder $query): array
+
+    private function buildFrequentStudents(Builder $query): array
     {
         return $query
             ->join('users', 'users.id', '=', 'leave_requests.user_id')
-            ->selectRaw('users.id as user_id, users.name as name, users.email as email, COUNT(leave_requests.id) as total_requests')
-            ->groupBy('users.id', 'users.name', 'users.email')
-            ->orderByDesc('total_requests')
-            ->limit(10)
+            ->selectRaw("
+                users.id as user_id,
+                users.name as name,
+                users.email as email,
+                DATE_FORMAT(leave_requests.created_at, '%Y-%m') as period,
+                COUNT(leave_requests.id) as request_count
+            ")
+            ->groupBy('users.id', 'users.name', 'users.email', 'period')
+            ->havingRaw('COUNT(leave_requests.id) > ?', [self::FREQUENT_LEAVE_THRESHOLD])
+            ->orderByDesc('request_count')
+            ->orderBy('period')
             ->get()
             ->map(fn ($row) => [
                 'user_id' => (int) $row->user_id,
                 'name' => $row->name,
                 'email' => $row->email,
-                'total_requests' => (int) $row->total_requests,
+                'period' => $row->period,
+                'month_label' => Carbon::createFromFormat('Y-m', $row->period)->format('F Y'),
+                'request_count' => (int) $row->request_count,
             ])
             ->values()
             ->all();

@@ -38,6 +38,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::patch('/users/{user}/status', [UserController::class, 'toggleStatus']);
     Route::post('/users/bulk-delete', [UserController::class, 'bulkDestroy']);
     Route::patch('/users/bulk-status', [UserController::class, 'bulkToggleStatus']);
+    Route::patch('/users/scope-status', [UserController::class, 'toggleStatusByScope']);
 });
 
 // Authentication routes (Sanctum)
