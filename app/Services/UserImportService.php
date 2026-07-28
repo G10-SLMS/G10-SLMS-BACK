@@ -291,6 +291,9 @@ class UserImportService
             $value = $row[$column] ?? null;
             if (is_string($value)) {
                 $value = trim($value);
+                if (in_array($field, ['class_name', 'generation'], true)) {
+                    $value = preg_replace('/\s+/', ' ', $value);
+                }
             }
             $data[$field] = ($value === '' ? null : $value);
         }
