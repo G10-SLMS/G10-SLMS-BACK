@@ -99,6 +99,86 @@ class UserController extends Controller
         ]);
     }
 
+    public function toggleStatus(Request $request, User $user): JsonResponse
+    {
+        if ($request->user()->id === $user->id) {
+            return response()->json([
+                'message' => 'You cannot disable your own account.',
+            ], 422);
+        }
+
+        $user->is_active = ! $user->is_active;
+        $user->save();
+
+        if (! $user->is_active) {
+            // Revoke existing sessions so a disabled user is signed out immediately,
+            // not just blocked from future logins.
+            $user->tokens()->delete();
+        }
+
+        return response()->json([
+            'message' => $user->is_active
+                ? 'User has been enabled.'
+                : 'User has been disabled.',
+            'user' => new UserResource($user->fresh()->load('avatar')),
+        ]);
+    }
+
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'exists:users,id'],
+        ]);
+
+        $ids = collect($validated['ids'])->unique();
+        $selfId = $request->user()->id;
+        $targetIds = $ids->reject(fn ($id) => $id === $selfId)->values();
+
+        $deleted = User::whereIn('id', $targetIds)->delete();
+
+        return response()->json([
+            'message' => "{$deleted} user(s) deleted.",
+            'deleted_count' => $deleted,
+            'skipped_self' => $ids->contains($selfId),
+        ]);
+    }
+
+    public function bulkToggleStatus(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'exists:users,id'],
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $ids = collect($validated['ids'])->unique();
+        $selfId = $request->user()->id;
+        $targetIds = $ids->reject(fn ($id) => $id === $selfId)->values();
+        $isActive = (bool) $validated['is_active'];
+
+        $users = User::whereIn('id', $targetIds)->get();
+
+        foreach ($users as $user) {
+            $user->is_active = $isActive;
+            $user->save();
+
+            if (! $isActive) {
+                // Revoke sessions immediately, same as the single-user toggle.
+                $user->tokens()->delete();
+            }
+        }
+
+        return response()->json([
+            'message' => $isActive
+                ? "{$users->count()} user(s) enabled."
+                : "{$users->count()} user(s) disabled.",
+            'updated_count' => $users->count(),
+            'skipped_self' => $ids->contains($selfId),
+            'users' => UserResource::collection($users->load('avatar')),
+        ]);
+    }
+
     public function destroy(Request $request, User $user): JsonResponse
     {
         if ($request->user()->id === $user->id) {

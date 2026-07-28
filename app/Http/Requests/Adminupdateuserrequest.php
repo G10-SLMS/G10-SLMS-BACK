@@ -12,6 +12,28 @@ class AdminUpdateUserRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $merge = [];
+        foreach (['class_name', 'generation', 'student_id'] as $field) {
+            if ($this->has($field)) {
+                $merge[$field] = $this->normalize($this->input($field));
+            }
+        }
+        $this->merge($merge);
+    }
+
+    private function normalize(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $normalized = trim(preg_replace('/\s+/', ' ', $value));
+
+        return $normalized === '' ? null : $normalized;
+    }
+
     public function rules(): array
     {
         $userId = $this->route('user')?->id;

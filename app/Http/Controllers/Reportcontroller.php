@@ -24,8 +24,6 @@ class ReportController extends Controller
         $baseQuery = LeaveRequest::query()
             ->whereBetween('leave_requests.created_at', [$startDate, $endDate]);
 
-        $this->scopeToViewer($baseQuery, $request);
-
         return response()->json([
             'success' => true,
             'message' => 'Report data retrieved successfully.',
@@ -39,17 +37,6 @@ class ReportController extends Controller
                 'top_students' => $this->buildTopStudents(clone $baseQuery),
             ],
         ]);
-    }
-
-    private function scopeToViewer(Builder $query, Request $request): void
-    {
-        $user = $request->user();
-
-        if ($user && $user->role === 'educator') {
-            $query->whereHas('user', function (Builder $q) use ($user) {
-                $q->where('educator_id', $user->id);
-            });
-        }
     }
 
     private function resolveRange(Request $request, ?string $range): array

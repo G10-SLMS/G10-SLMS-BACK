@@ -12,6 +12,29 @@ class AdminCreateUserRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'class_name' => $this->normalize($this->input('class_name')),
+            'generation' => $this->normalize($this->input('generation')),
+            'student_id' => $this->normalize($this->input('student_id')),
+        ]);
+    }
+
+    // Collapses stray internal whitespace so near-identical typos (extra
+    // spaces around a dash, double spaces, etc.) don't create a distinct
+    // class/generation group in the Student Directory.
+    private function normalize(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $normalized = trim(preg_replace('/\s+/', ' ', $value));
+
+        return $normalized === '' ? null : $normalized;
+    }
+
     public function rules(): array
     {
         return [

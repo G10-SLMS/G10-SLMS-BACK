@@ -22,15 +22,22 @@ Route::get('/user', function (Request $request) {
 // Public routes
 Route::get('/default-avatars', [AuthController::class, 'getDefaultAvatars']);
 
-// Admin routes
-Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+// Admin + Educator routes (management access, but NOT destructive actions)
+Route::middleware(['auth:sanctum', 'role:admin,educator'])->group(function () {
     Route::get('/users', [UserController::class, 'index']);
     Route::post('/users', [UserController::class, 'store']);
     Route::put('/users/{user}', [UserController::class, 'update']);
-    Route::delete('/users/{user}', [UserController::class, 'destroy']);
     Route::get('/users/import/template', [UserImportController::class, 'template']);
     Route::post('/users/import', [UserImportController::class, 'import']);
     Route::post('/admin/default-avatars', [AuthController::class, 'uploadDefaultAvatar']);
+});
+
+// Admin-only routes (destructive actions stay restricted to admin)
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::delete('/users/{user}', [UserController::class, 'destroy']);
+    Route::patch('/users/{user}/status', [UserController::class, 'toggleStatus']);
+    Route::post('/users/bulk-delete', [UserController::class, 'bulkDestroy']);
+    Route::patch('/users/bulk-status', [UserController::class, 'bulkToggleStatus']);
 });
 
 // Authentication routes (Sanctum)
@@ -112,8 +119,12 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/leave-types', [LeaveTypeController::class, 'index']);
 Route::get('/leave-types/{id}', [LeaveTypeController::class, 'show']);
 
-Route::middleware(['auth:sanctum', 'role:admin,student'])->group(function () {
+Route::middleware(['auth:sanctum', 'role:admin,student,educator'])->group(function () {
     Route::post('/leave-types', [LeaveTypeController::class, 'store']);
     Route::put('/leave-types/{leaveType}', [LeaveTypeController::class, 'update']);
+});
+
+// Deleting a leave type is destructive and stays admin-only.
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::delete('/leave-types/{leaveType}', [LeaveTypeController::class, 'destroy']);
 });
