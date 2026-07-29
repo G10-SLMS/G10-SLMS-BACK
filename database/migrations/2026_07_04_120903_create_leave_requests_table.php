@@ -26,7 +26,7 @@ return new class extends Migration
             $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled'])
                 ->default('pending');
 
-            $table->foreignId('reviewed_by')                // trainer/admin who approved/rejected
+            $table->foreignId('reviewed_by')                // educator/admin who approved/rejected
                 ->nullable()
                 ->constrained('users')
                 ->nullOnDelete();

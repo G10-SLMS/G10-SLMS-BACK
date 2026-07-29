@@ -58,6 +58,12 @@ class SocialAuthService
             $this->assignDefaultAvatar($user);
         }
 
+        if (! $user->is_active) {
+            throw ValidationException::withMessages([
+                'email' => ['This account has been disabled. Please contact an administrator.'],
+            ]);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return ['user' => $user, 'token' => $token];

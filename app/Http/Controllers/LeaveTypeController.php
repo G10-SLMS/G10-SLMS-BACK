@@ -41,12 +41,12 @@ class LeaveTypeController extends Controller
 
     /**
      * Display the specified resource.
-     * Get single leave type (all user: Admin, Trainer, and Student)
+     * Get single leave type (all user: Admin, Educator, and Student)
      */
     public function show(string $id)
     {
         $leaveType = LeaveType::find($id);
-        
+
         // Return HTTP 404 if Leave type not found
         if (!$leaveType) {
             return response()->json([

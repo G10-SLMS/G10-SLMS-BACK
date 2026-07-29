@@ -114,4 +114,18 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Default Password For Admin-Created Users
+    |--------------------------------------------------------------------------
+    |
+    | When an admin creates a new user from the User Management screen, no
+    | password is collected from the admin. This value is used as the user's
+    | initial password so they can log in; they should be encouraged to
+    | change it afterwards.
+    |
+    */
+
+    'default_new_user_password' => env('DEFAULT_NEW_USER_PASSWORD', '12345678'),
+
 ];

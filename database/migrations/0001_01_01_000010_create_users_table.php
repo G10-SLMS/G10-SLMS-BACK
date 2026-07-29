@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->enum('role', ['admin', 'trainer', 'student'])->default('student');
+            $table->enum('role', ['admin', 'educator', 'student'])->default('student');
             $table->string('phone')->nullable();
             $table->enum('gender', ['male', 'female'])->nullable();
 
@@ -26,7 +26,7 @@ return new class extends Migration
 
             // Foreign Keys
             $table->foreignId('avatar_id')->nullable()->constrained('avatars')->nullOnDelete();
-            $table->foreignId('trainer_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('educator_id')->nullable()->constrained('users')->nullOnDelete();
 
             $table->boolean('is_active')->default(true);
 

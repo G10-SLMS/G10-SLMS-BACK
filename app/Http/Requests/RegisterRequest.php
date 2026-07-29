@@ -18,8 +18,8 @@ class RegisterRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'role' => ['nullable', Rule::in(['admin', 'trainer', 'student'])],
-            'trainer_id' => ['nullable', 'exists:users,id'],
+            'role' => ['nullable', Rule::in(['admin', 'educator', 'student'])],
+            'educator_id' => ['nullable', 'exists:users,id'],
             'id_card' => ['nullable', 'integer', 'min:0'],
         ];
     }
@@ -27,7 +27,7 @@ class RegisterRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'trainer_id.exists' => 'The selected trainer does not exist.',
+            'educator_id.exists' => 'The selected educator does not exist.',
         ];
     }
 }

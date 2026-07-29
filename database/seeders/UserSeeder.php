@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Avatar;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -37,31 +38,28 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // 3 trainers
-        $trainerNames = ['Sophal Chan', 'Dara Vann', 'Kunthea Lim'];
-        $trainers = collect($trainerNames)->map(function (string $name, int $i) use ($password) {
+        // 3 educators
+        $educatorNames = ['Sophal Chan', 'Dara Vann', 'Kunthea Lim'];
+        $educators = collect($educatorNames)->map(function (string $name, int $i) use ($password) {
             return User::updateOrCreate(
-                ['email' => 'trainer'.($i + 1).'@slms.test'],
+                ['email' => 'educator'.($i + 1).'@slms.test'],
                 [
                     'name' => $name,
                     'password' => $password,
-                    'role' => 'trainer',
+                    'role' => 'educator',
                     'phone' => '01234567'.$i,
                     'email_verified_at' => now(),
                 ]
             );
         });
 
-        // Demo accounts used by the login page's quick-fill buttons.
-        // Both are role=student — "fellow" is just a different email
-        // domain convention (student.* vs fellow.*), not a separate role.
         User::updateOrCreate(
             ['email' => 'demo.student@student.passerellesnumeriques.org'],
             [
                 'name' => 'Demo Student',
                 'password' => Hash::make('password123'),
                 'role' => 'student',
-                'trainer_id' => $trainers[0]->id,
+                'educator_id' => $educators[0]->id,
                 'phone' => '012000001',
                 'class_name' => 'Web B2C1',
                 'generation' => '2026',
@@ -77,7 +75,7 @@ class UserSeeder extends Seeder
                 'name' => 'Demo Fellow',
                 'password' => Hash::make('password123'),
                 'role' => 'student',
-                'trainer_id' => $trainers[0]->id,
+                'educator_id' => $educators[0]->id,
                 'phone' => '012000002',
                 'class_name' => 'Web B2C1',
                 'generation' => '2026',
@@ -87,9 +85,8 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // 10 students, round-robin assigned to the trainers above
         for ($i = 1; $i <= 10; $i++) {
-            $trainer = $trainers[($i - 1) % $trainers->count()];
+            $educator = $educators[($i - 1) % $educators->count()];
 
             User::updateOrCreate(
                 ['email' => "student{$i}@slms.test"],
@@ -97,7 +94,7 @@ class UserSeeder extends Seeder
                     'name' => "Student {$i}",
                     'password' => $password,
                     'role' => 'student',
-                    'trainer_id' => $trainer->id,
+                    'educator_id' => $educator->id,
                     'phone' => '09' . str_pad((string) $i, 7, '0', STR_PAD_LEFT),
                     'class_name' => 'Web 2026B'.(($i % 3) + 1),
                     'generation' => '2026',
@@ -108,12 +105,11 @@ class UserSeeder extends Seeder
             );
         }
 
-        // A handful of extra random students via the factory, spread across trainers
         User::factory()
             ->count(5)
             ->sequence(fn ($sequence) => [
                 'role' => 'student',
-                'trainer_id' => $trainers[$sequence->index % $trainers->count()]->id,
+                'educator_id' => $educators[$sequence->index % $educators->count()]->id,
                 'phone' => '08' . str_pad((string) $sequence->index, 7, '0', STR_PAD_LEFT),
                 'class_name' => 'Web B2C'.(($sequence->index % 3) + 1),
                 'generation' => '2026',
@@ -121,5 +117,14 @@ class UserSeeder extends Seeder
                 'gender' => $genders[$sequence->index % 2],
             ])
             ->create();
+
+        User::whereNull('avatar_id')->get()->each(function (User $user) {
+            $avatar = Avatar::fallbackFor($user->gender);
+
+            if ($avatar) {
+                $user->avatar_id = $avatar->id;
+                $user->save();
+            }
+        });
     }
 }
