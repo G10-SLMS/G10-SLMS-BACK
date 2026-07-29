@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\LeaveRequestApprovedNotification;
 use App\Notifications\LeaveRequestRejectedNotification;
 use App\Notifications\LeaveRequestSubmittedNotification;
+use App\Notifications\LeaveRequestUnderReviewNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
@@ -91,6 +92,18 @@ class NotificationService
         ]);
     }
 
+    public function notifyLeaveUnderReview(LeaveRequest $leaveRequest, User $reviewer): void
+    {
+        $this->createFor($leaveRequest->user_id, [
+            'leave_request_id' => $leaveRequest->id,
+            'type' => 'leave_under_review',
+            'title' => 'Leave request under review',
+            'message' => "Your {$this->rangeLabel($leaveRequest)} leave request is now under review.",
+            'priority' => 'normal',
+            'created_by' => $reviewer->id,
+        ]);
+    }
+
     public function notifyLeaveApproved(LeaveRequest $leaveRequest, User $reviewer): void
     {
         $this->createFor($leaveRequest->user_id, [
@@ -131,55 +144,129 @@ class NotificationService
         ]);
     }
 
-    public function emailLeaveSubmitted(LeaveRequest $leaveRequest): bool
+    public function emailLeaveSubmitted(LeaveRequest $leaveRequest): void
+    {
+        $this->spawnBackground('submitted', $leaveRequest->id);
+    }
+
+    public function emailLeaveUnderReview(LeaveRequest $leaveRequest): void
+    {
+        $this->spawnBackground('under_review', $leaveRequest->id);
+    }
+
+    public function emailLeaveApproved(LeaveRequest $leaveRequest): void
+    {
+        $this->spawnBackground('approved', $leaveRequest->id);
+    }
+
+    public function emailLeaveRejected(LeaveRequest $leaveRequest): void
+    {
+        $this->spawnBackground('rejected', $leaveRequest->id);
+    }
+
+    public function sendLeaveSubmittedEmailNow(LeaveRequest $leaveRequest): void
     {
         $recipients = User::query()
             ->whereIn('role', ['admin', 'educator'])
             ->get();
 
-        return $this->sendEmailSafely(
+        $this->sendEmailSafely(
             $recipients,
             new LeaveRequestSubmittedNotification($leaveRequest),
         );
     }
 
-    public function emailLeaveApproved(LeaveRequest $leaveRequest): bool
+    public function sendLeaveUnderReviewEmailNow(LeaveRequest $leaveRequest): void
     {
-        return $this->sendEmailSafely(
+        $this->sendEmailSafely(
+            [$leaveRequest->user],
+            new LeaveRequestUnderReviewNotification($leaveRequest),
+        );
+    }
+
+    public function sendLeaveApprovedEmailNow(LeaveRequest $leaveRequest): void
+    {
+        $this->sendEmailSafely(
             [$leaveRequest->user],
             new LeaveRequestApprovedNotification($leaveRequest),
         );
     }
 
-    public function emailLeaveRejected(LeaveRequest $leaveRequest): bool
+    public function sendLeaveRejectedEmailNow(LeaveRequest $leaveRequest): void
     {
-        return $this->sendEmailSafely(
+        $this->sendEmailSafely(
             [$leaveRequest->user],
             new LeaveRequestRejectedNotification($leaveRequest),
         );
     }
 
-    protected function sendEmailSafely(iterable $recipients, $notification): bool
+    protected function sendEmailSafely(iterable $recipients, $notification): void
     {
         $recipients = collect($recipients)->filter()->values();
 
         if ($recipients->isEmpty()) {
-            return true;
+            return;
         }
 
         try {
             NotificationFacade::send($recipients, $notification);
-
-            return true;
         } catch (\Throwable $e) {
             Log::error('Leave request email notification failed to send.', [
                 'notification' => get_class($notification),
                 'recipients' => $recipients->pluck('id')->all(),
                 'error' => $e->getMessage(),
             ]);
-
-            return false;
         }
+    }
+
+    protected function spawnBackground(string $type, int $leaveRequestId): void
+    {
+        $spawnable = function_exists('exec') && function_exists('popen');
+
+        if (!$spawnable) {
+            Log::warning('exec()/popen() unavailable — sending leave email inline instead of in the background.');
+            $this->sendInline($type, $leaveRequestId);
+
+            return;
+        }
+
+        $php = PHP_BINARY ?: 'php';
+        $artisan = base_path('artisan');
+        $command = implode(' ', array_map('escapeshellarg', [
+            $php, $artisan, 'leave:send-email', $type, (string) $leaveRequestId,
+        ]));
+
+        try {
+            if (stripos(PHP_OS, 'WIN') === 0) {
+                pclose(popen('start /B "" ' . $command, 'r'));
+            } else {
+                exec($command . ' > /dev/null 2>&1 &');
+            }
+        } catch (\Throwable $e) {
+            Log::error('Failed to spawn background process for leave email; sending inline instead.', [
+                'type' => $type,
+                'leave_request_id' => $leaveRequestId,
+                'error' => $e->getMessage(),
+            ]);
+            $this->sendInline($type, $leaveRequestId);
+        }
+    }
+
+    protected function sendInline(string $type, int $leaveRequestId): void
+    {
+        $leaveRequest = LeaveRequest::with(['user', 'leaveType'])->find($leaveRequestId);
+
+        if (!$leaveRequest) {
+            return;
+        }
+
+        match ($type) {
+            'submitted' => $this->sendLeaveSubmittedEmailNow($leaveRequest),
+            'under_review' => $this->sendLeaveUnderReviewEmailNow($leaveRequest),
+            'approved' => $this->sendLeaveApprovedEmailNow($leaveRequest),
+            'rejected' => $this->sendLeaveRejectedEmailNow($leaveRequest),
+            default => null,
+        };
     }
 
     protected function reviewersFor(User $student): array

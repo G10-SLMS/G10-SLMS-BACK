@@ -54,6 +54,7 @@ class LeaveRequestController extends Controller
             ->visibleTo($request->user())
             ->selectRaw("
                 COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+                COUNT(CASE WHEN status = 'under_review' THEN 1 END) as under_review,
                 COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
                 COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected,
                 COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled
@@ -62,6 +63,7 @@ class LeaveRequestController extends Controller
 
         return $this->success([
             'pending' => (int) $counts->pending,
+            'under_review' => (int) $counts->under_review,
             'approved' => (int) $counts->approved,
             'rejected' => (int) $counts->rejected,
             'cancelled' => (int) $counts->cancelled,
@@ -83,15 +85,11 @@ class LeaveRequestController extends Controller
         $this->storeAttachments($request, $leave);
 
         $this->notifications->notifyLeaveSubmitted($leave);
-        $emailSent = $this->notifications->emailLeaveSubmitted($leave);
+        $this->notifications->emailLeaveSubmitted($leave);
 
         $leave = $leave->fresh(['leaveType', 'attachments']);
 
-        $message = $emailSent
-            ? 'Leave request created successfully.'
-            : 'Leave request created successfully, but the notification email to your admin/educator could not be sent.';
-
-        return $this->success($leave->toArray(), $message, 201);
+        return $this->success($leave->toArray(), 'Leave request created successfully.', 201);
     }
 
     public function show(Request $request, $id)
@@ -201,41 +199,65 @@ class LeaveRequestController extends Controller
 
     private function handleReview(Request $request, LeaveRequest $leaveRequest, $user)
     {
+        $validated = $request->validated();
+        $note = $validated['review_note'] ?? null;
+
+        if ($validated['status'] === 'under_review') {
+            return $this->markUnderReview($leaveRequest, $user, $note);
+        }
+
+        return $this->finalizeDecision($leaveRequest, $user, $validated['status'], $note);
+    }
+
+    private function markUnderReview(LeaveRequest $leaveRequest, $user, ?string $note)
+    {
         if ($leaveRequest->status !== 'pending') {
+            return $this->error('Only pending leave requests can be marked as under review.');
+        }
+
+        $leaveRequest->update([
+            'status' => 'under_review',
+            'reviewed_by' => $user->id,
+            'review_note' => $note,
+        ]);
+
+        LeaveRequestApproval::record($leaveRequest, $user, 'under_review', $note);
+
+        $this->notifications->notifyLeaveUnderReview($leaveRequest, $user);
+        $this->notifications->emailLeaveUnderReview($leaveRequest);
+
+        return $this->success(
+            $this->formatLeaveRequest($leaveRequest->load(['leaveType', 'user.avatar', 'reviewer', 'approvalHistory.approver'])),
+            'Leave request marked as under review.',
+        );
+    }
+
+    private function finalizeDecision(LeaveRequest $leaveRequest, $user, string $status, ?string $note)
+    {
+        if (!$leaveRequest->isAwaitingDecision()) {
             return $this->error('This request has already been reviewed.');
         }
 
-        $validated = $request->validated();
-
         $leaveRequest->update([
-            'status' => $validated['status'],
+            'status' => $status,
             'reviewed_by' => $user->id,
             'reviewed_at' => now(),
-            'review_note' => $validated['review_note'] ?? null,
+            'review_note' => $note,
         ]);
 
-        LeaveRequestApproval::record(
-            $leaveRequest,
-            $user,
-            $validated['status'],
-            $validated['review_note'] ?? null,
-        );
+        LeaveRequestApproval::record($leaveRequest, $user, $status, $note);
 
-        $approved = $validated['status'] === 'approved';
+        $approved = $status === 'approved';
 
         if ($approved) {
             $this->notifications->notifyLeaveApproved($leaveRequest, $user);
-            $emailSent = $this->notifications->emailLeaveApproved($leaveRequest);
+            $this->notifications->emailLeaveApproved($leaveRequest);
         } else {
             $this->notifications->notifyLeaveRejected($leaveRequest, $user);
-            $emailSent = $this->notifications->emailLeaveRejected($leaveRequest);
+            $this->notifications->emailLeaveRejected($leaveRequest);
         }
 
         $message = $approved ? 'Leave request approved successfully.' : 'Leave request rejected successfully.';
-
-        if (!$emailSent) {
-            $message .= ' The student could not be notified by email.';
-        }
 
         return $this->success(
             $this->formatLeaveRequest($leaveRequest->load(['leaveType', 'user.avatar', 'reviewer', 'approvalHistory.approver'])),

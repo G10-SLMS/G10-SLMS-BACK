@@ -37,4 +37,9 @@ class LeaveRequestFactory extends Factory
             ];
         });
     }
+
+    public function underReview(): static
+    {
+        return $this->state(fn () => ['status' => 'under_review']);
+    }
 }

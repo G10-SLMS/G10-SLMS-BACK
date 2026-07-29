@@ -70,13 +70,15 @@ class ReportController extends Controller
 
         $approved = (int) ($counts['approved'] ?? 0);
         $pending = (int) ($counts['pending'] ?? 0);
+        $underReview = (int) ($counts['under_review'] ?? 0);
         $rejected = (int) ($counts['rejected'] ?? 0);
         $cancelled = (int) ($counts['cancelled'] ?? 0);
 
         return [
-            'total' => $approved + $pending + $rejected + $cancelled,
+            'total' => $approved + $pending + $underReview + $rejected + $cancelled,
             'approved' => $approved,
             'pending' => $pending,
+            'under_review' => $underReview,
             'rejected' => $rejected,
         ];
     }

@@ -26,7 +26,7 @@ class LeaveRequestSeeder extends Seeder
             return;
         }
 
-        $statuses = ['pending', 'approved', 'rejected'];
+        $statuses = ['pending', 'under_review', 'approved', 'rejected'];
 
         foreach ($students as $index => $student) {
             $reviewer = $student->educator_id
@@ -54,7 +54,7 @@ class LeaveRequestSeeder extends Seeder
                     'status' => $status,
                     'reviewed_by' => $status === 'pending' ? null : $reviewer?->id,
                     'review_note' => $status === 'rejected' ? 'Insufficient notice given.' : null,
-                    'reviewed_at' => $status === 'pending' ? null : now(),
+                    'reviewed_at' => in_array($status, ['approved', 'rejected'], true) ? now() : null,
                 ]
             );
 

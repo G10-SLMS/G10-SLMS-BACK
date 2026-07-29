@@ -30,4 +30,12 @@ class LeaveRequestApprovalFactory extends Factory
             'reason' => $reason ?? fake()->sentence(),
         ]);
     }
+
+    public function underReview(): static
+    {
+        return $this->state(fn () => [
+            'status' => 'under_review',
+            'reason' => null,
+        ]);
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\UniqueStudentIdInGeneration;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,9 +22,6 @@ class AdminCreateUserRequest extends FormRequest
         ]);
     }
 
-    // Collapses stray internal whitespace so near-identical typos (extra
-    // spaces around a dash, double spaces, etc.) don't create a distinct
-    // class/generation group in the Student Directory.
     private function normalize(?string $value): ?string
     {
         if ($value === null) {
@@ -37,6 +35,8 @@ class AdminCreateUserRequest extends FormRequest
 
     public function rules(): array
     {
+        $role = $this->input('role') ?: 'student';
+
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
@@ -44,7 +44,15 @@ class AdminCreateUserRequest extends FormRequest
             'gender' => ['nullable', Rule::in(['male', 'female'])],
             'phone' => ['nullable', 'string', 'max:50'],
             'educator_id' => ['nullable', 'exists:users,id'],
-            'student_id' => ['nullable', 'string', 'max:50'],
+            'student_id' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::when(
+                    $role === 'student',
+                    [new UniqueStudentIdInGeneration($this->input('generation'))],
+                ),
+            ],
             'class_name' => ['nullable', 'string', 'max:255'],
             'generation' => ['nullable', 'string', 'max:255'],
             'province' => ['nullable', 'string', 'max:255'],

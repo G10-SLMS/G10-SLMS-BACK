@@ -93,7 +93,7 @@ class UpdateLeaveRequest extends FormRequest
 
         // Allow status and review_note only for educator/admin
         if ($isEducatorOrAdmin) {
-            $rules['status'] = ['sometimes', 'required', 'in:approved,rejected'];
+            $rules['status'] = ['sometimes', 'required', Rule::in(LeaveRequest::REVIEW_STATUSES)];
 
             if ($this->input('status') === 'rejected') {
                 $rules['review_note'] = ['required', 'string', 'min:5', 'max:500'];
@@ -168,8 +168,8 @@ class UpdateLeaveRequest extends FormRequest
 
         $user = $this->user();
         if ($user && in_array($user->role, ['educator', 'admin'])) {
-            $messages['status.required'] = 'Please select a status (approved or rejected).';
-            $messages['status.in'] = 'Status must be either approved or rejected.';
+            $messages['status.required'] = 'Please select a status (under review, approved, or rejected).';
+            $messages['status.in'] = 'Status must be under review, approved, or rejected.';
             $messages['review_note.required'] = 'Please provide a review note.';
             $messages['review_note.min'] = 'Review note must be at least 5 characters.';
             $messages['review_note.max'] = 'Review note must not exceed 500 characters.';
