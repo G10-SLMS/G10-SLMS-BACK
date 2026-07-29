@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\UniqueStudentIdInGeneration;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,7 +22,9 @@ class UpdateProfileRequest extends FormRequest
 
     public function rules(): array
     {
-        $userId = $this->user()->id;
+        $user = $this->user();
+        $userId = $user->id;
+        $generation = $this->has('generation') ? $this->input('generation') : $user->generation;
 
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
@@ -33,7 +36,16 @@ class UpdateProfileRequest extends FormRequest
             'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
 
             // Student-only
-            'student_id' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'student_id' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:50',
+                Rule::when(
+                    $user->role === 'student',
+                    [new UniqueStudentIdInGeneration($generation, $userId)],
+                ),
+            ],
             'class_name' => ['sometimes', 'nullable', 'string', 'max:100'],
             'generation' => ['sometimes', 'nullable', 'string', 'max:50'],
             'province' => ['sometimes', 'nullable', 'string', 'max:100'],

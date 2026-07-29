@@ -16,10 +16,6 @@ use Throwable;
 
 class UserImportService
 {
-    /**
-     * Recognised (normalised) header labels mapped to the internal field name
-     * they populate. Keeps the template forgiving of minor header variations.
-     */
     private const COLUMN_MAP = [
         'name' => 'name',
         'full name' => 'name',
@@ -43,11 +39,6 @@ class UserImportService
         'Name', 'Email', 'Role', 'Gender', 'Phone', 'Student ID', 'Class Name', 'Generation', 'Province', 'Educator ID',
     ];
 
-    /**
-     * Parse the uploaded file and create a user account for every valid row.
-     *
-     * @return array{summary: array, results: array}
-     */
     public function import(UploadedFile $file): array
     {
         $rows = $this->readRows($file);
@@ -72,6 +63,7 @@ class UserImportService
         $failed = [];
         $skipped = [];
         $seenEmails = [];
+        $seenStudentIds = [];
         $processedRows = 0;
 
         $defaultPassword = config('auth.default_new_user_password', '12345678');
@@ -113,6 +105,40 @@ class UserImportService
                     'reason' => 'A user with this email already exists.',
                 ];
                 continue;
+            }
+
+            $effectiveRole = $data['role'] ?: 'student';
+            $studentId = $data['student_id'] ?? null;
+
+            if ($effectiveRole === 'student' && $studentId !== null) {
+                $generation = $data['generation'] ?? null;
+                $studentIdKey = $studentId . '|' . ($generation ?? '');
+
+                if (isset($seenStudentIds[$studentIdKey])) {
+                    $skipped[] = [
+                        'row' => $rowNumber,
+                        'email' => $data['email'],
+                        'reason' => "Duplicate student ID \"{$studentId}\" within the uploaded file for this generation.",
+                    ];
+                    continue;
+                }
+
+                $duplicateExists = User::where('role', 'student')
+                    ->where('student_id', $studentId)
+                    ->where('generation', $generation)
+                    ->exists();
+
+                if ($duplicateExists) {
+                    $seenStudentIds[$studentIdKey] = true;
+                    $skipped[] = [
+                        'row' => $rowNumber,
+                        'email' => $data['email'],
+                        'reason' => "Student ID \"{$studentId}\" is already used by another student in this generation.",
+                    ];
+                    continue;
+                }
+
+                $seenStudentIds[$studentIdKey] = true;
             }
 
             $validator = Validator::make($data, [
@@ -183,9 +209,6 @@ class UserImportService
         ];
     }
 
-    /**
-     * Build the downloadable import template with headers and a sample row.
-     */
     public function generateTemplate(): Spreadsheet
     {
         $spreadsheet = new Spreadsheet();
@@ -206,9 +229,6 @@ class UserImportService
         return $spreadsheet;
     }
 
-    /**
-     * @return array<int, array<int, mixed>>
-     */
     private function readRows(UploadedFile $file): array
     {
         $path = $file->getRealPath();
@@ -250,9 +270,6 @@ class UserImportService
         return $sheet->toArray(null, true, true, false);
     }
 
-    /**
-     * @return array<int, string> map of spreadsheet column index => internal field name
-     */
     private function mapHeader(array $header): array
     {
         $map = [];
@@ -280,9 +297,6 @@ class UserImportService
         return true;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     private function extractRowData(array $row, array $fieldsByColumn): array
     {
         $data = [];

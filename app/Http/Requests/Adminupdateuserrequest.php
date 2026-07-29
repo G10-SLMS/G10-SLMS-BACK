@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\UniqueStudentIdInGeneration;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -36,7 +37,10 @@ class AdminUpdateUserRequest extends FormRequest
 
     public function rules(): array
     {
-        $userId = $this->route('user')?->id;
+        $user = $this->route('user');
+        $userId = $user?->id;
+        $role = $this->input('role') ?: $user?->role;
+        $generation = $this->has('generation') ? $this->input('generation') : $user?->generation;
 
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
@@ -45,7 +49,16 @@ class AdminUpdateUserRequest extends FormRequest
             'gender' => ['sometimes', 'nullable', Rule::in(['male', 'female'])],
             'phone' => ['sometimes', 'nullable', 'string', 'max:50'],
             'educator_id' => ['sometimes', 'nullable', 'exists:users,id'],
-            'student_id' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'student_id' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:50',
+                Rule::when(
+                    $role === 'student',
+                    [new UniqueStudentIdInGeneration($generation, $userId)],
+                ),
+            ],
             'class_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'generation' => ['sometimes', 'nullable', 'string', 'max:255'],
             'province' => ['sometimes', 'nullable', 'string', 'max:255'],
