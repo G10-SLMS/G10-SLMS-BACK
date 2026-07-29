@@ -20,6 +20,16 @@ class LeaveRequest extends Model
     public const DURATION_TYPES = ['full_day', 'hourly'];
     public const DETAIL_RELATIONS = ['leaveType', 'user.avatar', 'reviewer', 'attachments', 'approvalHistory.approver'];
 
+    // Full workflow: pending -> under_review -> approved/rejected, with
+    // cancelled reachable from pending only (see LeaveRequestController::cancel()).
+    public const STATUSES = ['pending', 'under_review', 'approved', 'rejected', 'cancelled'];
+
+    // Statuses an Admin/Educator can move a request to from its current status.
+    public const REVIEW_STATUSES = ['under_review', 'approved', 'rejected'];
+
+    // Terminal, final-decision statuses (as opposed to 'pending'/'under_review').
+    public const DECISION_STATUSES = ['approved', 'rejected'];
+
     protected $fillable = [
         'user_id',
         'leave_type_id',
@@ -45,6 +55,11 @@ class LeaveRequest extends Model
     ];
 
     protected $appends = ['duration_label'];
+
+    public function isAwaitingDecision(): bool
+    {
+        return in_array($this->status, ['pending', 'under_review'], true);
+    }
 
     public static function isValidHourlyDuration(int $minutes): bool
     {
