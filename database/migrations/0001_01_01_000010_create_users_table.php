@@ -14,17 +14,21 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->string('avatar')->nullable();
-            $table->enum('role', ['admin', 'trainer', 'student'])->default('student');
-            $table->foreignId('trainer_id')->nullable()->constrained('users')->nullOnDelete();
-
-            // phone: all roles
-            // class/generation/province/gender: student only
+            $table->enum('role', ['admin', 'educator', 'student'])->default('student');
             $table->string('phone')->nullable();
-            $table->string('class')->nullable();          // e.g. cohort name, "Web B2C1"
-            $table->string('generation')->nullable();      // e.g. intake generation, "G10"
-            $table->string('province')->nullable();
             $table->enum('gender', ['male', 'female'])->nullable();
+
+            // Student-only fields
+            $table->integer('student_id')->nullable();
+            $table->string('class_name')->nullable();
+            $table->string('generation')->nullable();
+            $table->string('province')->nullable();
+
+            // Foreign Keys
+            $table->foreignId('avatar_id')->nullable()->constrained('avatars')->nullOnDelete();
+            $table->foreignId('educator_id')->nullable()->constrained('users')->nullOnDelete();
+
+            $table->boolean('is_active')->default(true);
 
             $table->rememberToken();
             $table->timestamps();
