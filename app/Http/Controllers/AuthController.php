@@ -19,7 +19,7 @@ class AuthController extends Controller
     {
         $data = $request->validated();
         $data['password'] = Hash::make($data['password']);
-        $data['role'] = $data['role'] ?? 'student';
+        $data['role'] = 'student';
 
         $user = User::create($data);
 
